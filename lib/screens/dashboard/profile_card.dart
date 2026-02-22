@@ -21,14 +21,18 @@ class ProfileCard extends ConsumerWidget {
   final SyncProfile profile;
 
   void _startSync(BuildContext context, WidgetRef ref, {bool dryRun = false}) async {
+    // Capture all notifier references before the async gap so they stay valid.
     final executor = ref.read(syncExecutorProvider);
     final jobsNotifier = ref.read(syncJobsProvider.notifier);
+    final profilesNotifier = ref.read(profilesProvider.notifier);
+    final historyNotifier = ref.read(syncHistoryProvider.notifier);
+    final profileId = profile.id;
     final startTime = DateTime.now();
 
     final job = await executor.executeSync(
       profile,
       dryRun: dryRun,
-      onProgress: (job) => jobsNotifier.updateJob(profile.id, job),
+      onProgress: (job) => jobsNotifier.updateJob(profileId, job),
       onDryRunComplete: (preview) {
         if (context.mounted) {
           Navigator.of(context).push(
@@ -46,33 +50,33 @@ class ProfileCard extends ConsumerWidget {
       },
     );
 
-    // After sync completes (skip for dry runs), update profile and history
+    // After sync completes (skip for dry runs), update profile and history.
     if (!dryRun) {
       final isSuccess = job.status == SyncJobStatus.finished;
 
-      // Update profile's last sync status
-      ref.read(profilesProvider.notifier).updateProfileStatus(
-            profile.id,
-            status: isSuccess ? 'success' : 'error',
-            error: job.error,
-            lastSyncTime: DateTime.now(),
-          );
+      // Update profile's last sync status.
+      profilesNotifier.updateProfileStatus(
+        profileId,
+        status: isSuccess ? 'success' : 'error',
+        error: job.error,
+        lastSyncTime: DateTime.now(),
+      );
 
-      // Add history entry
-      ref.read(syncHistoryProvider.notifier).addEntry(
-            SyncHistoryEntry(
-              profileId: profile.id,
-              timestamp: DateTime.now(),
-              status: isSuccess ? 'success' : 'error',
-              filesTransferred: job.filesTransferred,
-              bytesTransferred: job.bytesTransferred,
-              duration: DateTime.now().difference(startTime),
-              error: job.error,
-            ),
-          );
+      // Add history entry.
+      historyNotifier.addEntry(
+        SyncHistoryEntry(
+          profileId: profileId,
+          timestamp: DateTime.now(),
+          status: isSuccess ? 'success' : 'error',
+          filesTransferred: job.filesTransferred,
+          bytesTransferred: job.bytesTransferred,
+          duration: DateTime.now().difference(startTime),
+          error: job.error,
+        ),
+      );
 
-      // Clear the active job
-      jobsNotifier.removeJob(profile.id);
+      // Clear the active job.
+      jobsNotifier.removeJob(profileId);
     }
   }
 
