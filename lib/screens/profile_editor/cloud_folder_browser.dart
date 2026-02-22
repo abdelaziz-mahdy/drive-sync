@@ -41,12 +41,30 @@ class _CloudFolderBrowserState extends ConsumerState<CloudFolderBrowser> {
   /// Expanded folders (for tree-like UI at current level)
   final Set<String> _expanded = {};
 
+  /// The remote's configured scope (fetched once on init).
+  String? _remoteScope;
+
   String get _currentPath => _pathSegments.join('/');
 
   @override
   void initState() {
     super.initState();
     _loadFolders('');
+    _loadRemoteConfig();
+  }
+
+  Future<void> _loadRemoteConfig() async {
+    try {
+      final service = ref.read(rcloneServiceProvider);
+      final config = await service.getRemoteConfig(widget.remoteName);
+      if (mounted) {
+        setState(() {
+          _remoteScope = config['scope'] as String? ?? '';
+        });
+      }
+    } catch (_) {
+      // Non-critical — we just won't show scope info.
+    }
   }
 
   Future<void> _loadFolders(String path) async {
@@ -111,6 +129,32 @@ class _CloudFolderBrowserState extends ConsumerState<CloudFolderBrowser> {
     });
   }
 
+  /// Whether the remote's scope restricts folder visibility.
+  bool get _hasLimitedScope {
+    if (_remoteScope == null) return false;
+    return _remoteScope == 'drive.file' ||
+        _remoteScope == 'drive.appfolder' ||
+        _remoteScope == 'drive.metadata.readonly';
+  }
+
+  /// Human-readable label for the current scope.
+  String get _scopeLabel {
+    switch (_remoteScope) {
+      case 'drive':
+        return 'Full access';
+      case 'drive.readonly':
+        return 'Read-only';
+      case 'drive.file':
+        return 'Rclone-created files only';
+      case 'drive.appfolder':
+        return 'App folder only';
+      case 'drive.metadata.readonly':
+        return 'Metadata only (read-only)';
+      default:
+        return _remoteScope ?? 'Unknown';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -165,11 +209,9 @@ class _CloudFolderBrowserState extends ConsumerState<CloudFolderBrowser> {
                         ? const Center(child: CircularProgressIndicator())
                         : folders.isEmpty
                             ? Center(
-                                child: Text(
-                                  'No subfolders',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: _buildEmptyState(theme),
                                 ),
                               )
                             : ListView.builder(
@@ -214,6 +256,72 @@ class _CloudFolderBrowserState extends ConsumerState<CloudFolderBrowser> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    // Not at root — just a normal empty folder.
+    if (_currentPath.isNotEmpty) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.folder_off_outlined,
+              size: 40, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text('No subfolders', style: theme.textTheme.titleSmall),
+        ],
+      );
+    }
+
+    // At root — show scope-aware message.
+    final scopeKnown = _remoteScope != null;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          _hasLimitedScope ? Icons.info_outline : Icons.folder_off_outlined,
+          size: 40,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'No folders visible',
+          style: theme.textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        if (scopeKnown && _hasLimitedScope)
+          Text(
+            'Your remote is configured with "$_remoteScope" scope '
+            '($_scopeLabel). This scope limits folder visibility.\n\n'
+            'If you need to browse existing folders, reconfigure '
+            'with "drive" scope via "rclone config".\n\n'
+            'You can still type a path manually in the text field.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          )
+        else if (scopeKnown && !_hasLimitedScope)
+          Text(
+            'This remote has no folders yet, or the root is empty.\n\n'
+            'You can type a path manually — rclone will create '
+            'folders automatically during sync.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          )
+        else
+          Text(
+            'This may be a permissions issue, or the remote is empty.\n\n'
+            'You can type a path manually in the text field.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+            textAlign: TextAlign.center,
+          ),
+      ],
     );
   }
 
