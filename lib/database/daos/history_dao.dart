@@ -19,7 +19,7 @@ class TransferredFileRecord {
 
 /// Full history entry with optional file records.
 class HistoryEntryWithFiles {
-  final SyncHistoryEntryData entry;
+  final SyncHistoryEntryRow entry;
   final List<TransferredFileRecord> files;
 
   const HistoryEntryWithFiles({required this.entry, required this.files});
@@ -33,7 +33,7 @@ class HistoryDao extends DatabaseAccessor<AppDatabase>
   static const int maxEntries = 500;
 
   /// Load all history entries (most recent first), without file records.
-  Future<List<SyncHistoryEntryData>> loadAll() async {
+  Future<List<SyncHistoryEntryRow>> loadAll() async {
     return (select(syncHistoryEntries)
           ..orderBy([
             (t) => OrderingTerm.desc(t.timestamp),

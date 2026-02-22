@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+@DataClassName('AppConfigRow')
 class AppConfigs extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get themeMode => text().withDefault(const Constant('system'))();
@@ -14,6 +15,7 @@ class AppConfigs extends Table {
   TextColumn get bandwidthLimit => text().nullable()();
 }
 
+@DataClassName('SyncProfileRow')
 class SyncProfiles extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
@@ -68,6 +70,7 @@ class ProfileCustomExcludes extends Table {
   TextColumn get pattern => text()();
 }
 
+@DataClassName('SyncHistoryEntryRow')
 class SyncHistoryEntries extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get profileId => text().references(SyncProfiles, #id)();
@@ -81,6 +84,7 @@ class SyncHistoryEntries extends Table {
   TextColumn get error => text().nullable()();
 }
 
+@DataClassName('TransferredFileRow')
 class TransferredFiles extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get historyId =>

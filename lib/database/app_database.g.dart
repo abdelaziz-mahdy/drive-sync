@@ -4,7 +4,7 @@ part of 'app_database.dart';
 
 // ignore_for_file: type=lint
 class $AppConfigsTable extends AppConfigs
-    with TableInfo<$AppConfigsTable, AppConfig> {
+    with TableInfo<$AppConfigsTable, AppConfigRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -129,7 +129,7 @@ class $AppConfigsTable extends AppConfigs
   static const String $name = 'app_configs';
   @override
   VerificationContext validateIntegrity(
-    Insertable<AppConfig> instance, {
+    Insertable<AppConfigRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -200,9 +200,9 @@ class $AppConfigsTable extends AppConfigs
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  AppConfig map(Map<String, dynamic> data, {String? tablePrefix}) {
+  AppConfigRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return AppConfig(
+    return AppConfigRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -244,7 +244,7 @@ class $AppConfigsTable extends AppConfigs
   }
 }
 
-class AppConfig extends DataClass implements Insertable<AppConfig> {
+class AppConfigRow extends DataClass implements Insertable<AppConfigRow> {
   final int id;
   final String themeMode;
   final bool launchAtLogin;
@@ -253,7 +253,7 @@ class AppConfig extends DataClass implements Insertable<AppConfig> {
   final int rcPort;
   final String? skippedVersion;
   final String? bandwidthLimit;
-  const AppConfig({
+  const AppConfigRow({
     required this.id,
     required this.themeMode,
     required this.launchAtLogin,
@@ -298,12 +298,12 @@ class AppConfig extends DataClass implements Insertable<AppConfig> {
     );
   }
 
-  factory AppConfig.fromJson(
+  factory AppConfigRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return AppConfig(
+    return AppConfigRow(
       id: serializer.fromJson<int>(json['id']),
       themeMode: serializer.fromJson<String>(json['themeMode']),
       launchAtLogin: serializer.fromJson<bool>(json['launchAtLogin']),
@@ -329,7 +329,7 @@ class AppConfig extends DataClass implements Insertable<AppConfig> {
     };
   }
 
-  AppConfig copyWith({
+  AppConfigRow copyWith({
     int? id,
     String? themeMode,
     bool? launchAtLogin,
@@ -338,7 +338,7 @@ class AppConfig extends DataClass implements Insertable<AppConfig> {
     int? rcPort,
     Value<String?> skippedVersion = const Value.absent(),
     Value<String?> bandwidthLimit = const Value.absent(),
-  }) => AppConfig(
+  }) => AppConfigRow(
     id: id ?? this.id,
     themeMode: themeMode ?? this.themeMode,
     launchAtLogin: launchAtLogin ?? this.launchAtLogin,
@@ -352,8 +352,8 @@ class AppConfig extends DataClass implements Insertable<AppConfig> {
         ? bandwidthLimit.value
         : this.bandwidthLimit,
   );
-  AppConfig copyWithCompanion(AppConfigsCompanion data) {
-    return AppConfig(
+  AppConfigRow copyWithCompanion(AppConfigsCompanion data) {
+    return AppConfigRow(
       id: data.id.present ? data.id.value : this.id,
       themeMode: data.themeMode.present ? data.themeMode.value : this.themeMode,
       launchAtLogin: data.launchAtLogin.present
@@ -377,7 +377,7 @@ class AppConfig extends DataClass implements Insertable<AppConfig> {
 
   @override
   String toString() {
-    return (StringBuffer('AppConfig(')
+    return (StringBuffer('AppConfigRow(')
           ..write('id: $id, ')
           ..write('themeMode: $themeMode, ')
           ..write('launchAtLogin: $launchAtLogin, ')
@@ -404,7 +404,7 @@ class AppConfig extends DataClass implements Insertable<AppConfig> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is AppConfig &&
+      (other is AppConfigRow &&
           other.id == this.id &&
           other.themeMode == this.themeMode &&
           other.launchAtLogin == this.launchAtLogin &&
@@ -415,7 +415,7 @@ class AppConfig extends DataClass implements Insertable<AppConfig> {
           other.bandwidthLimit == this.bandwidthLimit);
 }
 
-class AppConfigsCompanion extends UpdateCompanion<AppConfig> {
+class AppConfigsCompanion extends UpdateCompanion<AppConfigRow> {
   final Value<int> id;
   final Value<String> themeMode;
   final Value<bool> launchAtLogin;
@@ -444,7 +444,7 @@ class AppConfigsCompanion extends UpdateCompanion<AppConfig> {
     this.skippedVersion = const Value.absent(),
     this.bandwidthLimit = const Value.absent(),
   });
-  static Insertable<AppConfig> custom({
+  static Insertable<AppConfigRow> custom({
     Expression<int>? id,
     Expression<String>? themeMode,
     Expression<bool>? launchAtLogin,
@@ -535,7 +535,7 @@ class AppConfigsCompanion extends UpdateCompanion<AppConfig> {
 }
 
 class $SyncProfilesTable extends SyncProfiles
-    with TableInfo<$SyncProfilesTable, SyncProfile> {
+    with TableInfo<$SyncProfilesTable, SyncProfileRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -803,7 +803,7 @@ class $SyncProfilesTable extends SyncProfiles
   static const String $name = 'sync_profiles';
   @override
   VerificationContext validateIntegrity(
-    Insertable<SyncProfile> instance, {
+    Insertable<SyncProfileRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -966,9 +966,9 @@ class $SyncProfilesTable extends SyncProfiles
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  SyncProfile map(Map<String, dynamic> data, {String? tablePrefix}) {
+  SyncProfileRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SyncProfile(
+    return SyncProfileRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -1054,7 +1054,7 @@ class $SyncProfilesTable extends SyncProfiles
   }
 }
 
-class SyncProfile extends DataClass implements Insertable<SyncProfile> {
+class SyncProfileRow extends DataClass implements Insertable<SyncProfileRow> {
   final String id;
   final String name;
   final String remoteName;
@@ -1074,7 +1074,7 @@ class SyncProfile extends DataClass implements Insertable<SyncProfile> {
   final String? lastSyncError;
   final DateTime createdAt;
   final DateTime updatedAt;
-  const SyncProfile({
+  const SyncProfileRow({
     required this.id,
     required this.name,
     required this.remoteName,
@@ -1160,12 +1160,12 @@ class SyncProfile extends DataClass implements Insertable<SyncProfile> {
     );
   }
 
-  factory SyncProfile.fromJson(
+  factory SyncProfileRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SyncProfile(
+    return SyncProfileRow(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       remoteName: serializer.fromJson<String>(json['remoteName']),
@@ -1213,7 +1213,7 @@ class SyncProfile extends DataClass implements Insertable<SyncProfile> {
     };
   }
 
-  SyncProfile copyWith({
+  SyncProfileRow copyWith({
     String? id,
     String? name,
     String? remoteName,
@@ -1233,7 +1233,7 @@ class SyncProfile extends DataClass implements Insertable<SyncProfile> {
     Value<String?> lastSyncError = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) => SyncProfile(
+  }) => SyncProfileRow(
     id: id ?? this.id,
     name: name ?? this.name,
     remoteName: remoteName ?? this.remoteName,
@@ -1260,8 +1260,8 @@ class SyncProfile extends DataClass implements Insertable<SyncProfile> {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
-  SyncProfile copyWithCompanion(SyncProfilesCompanion data) {
-    return SyncProfile(
+  SyncProfileRow copyWithCompanion(SyncProfilesCompanion data) {
+    return SyncProfileRow(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       remoteName: data.remoteName.present
@@ -1312,7 +1312,7 @@ class SyncProfile extends DataClass implements Insertable<SyncProfile> {
 
   @override
   String toString() {
-    return (StringBuffer('SyncProfile(')
+    return (StringBuffer('SyncProfileRow(')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('remoteName: $remoteName, ')
@@ -1361,7 +1361,7 @@ class SyncProfile extends DataClass implements Insertable<SyncProfile> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is SyncProfile &&
+      (other is SyncProfileRow &&
           other.id == this.id &&
           other.name == this.name &&
           other.remoteName == this.remoteName &&
@@ -1383,7 +1383,7 @@ class SyncProfile extends DataClass implements Insertable<SyncProfile> {
           other.updatedAt == this.updatedAt);
 }
 
-class SyncProfilesCompanion extends UpdateCompanion<SyncProfile> {
+class SyncProfilesCompanion extends UpdateCompanion<SyncProfileRow> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> remoteName;
@@ -1451,7 +1451,7 @@ class SyncProfilesCompanion extends UpdateCompanion<SyncProfile> {
        name = Value(name),
        remoteName = Value(remoteName),
        cloudFolder = Value(cloudFolder);
-  static Insertable<SyncProfile> custom({
+  static Insertable<SyncProfileRow> custom({
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? remoteName,
@@ -2457,7 +2457,7 @@ class ProfileCustomExcludesCompanion
 }
 
 class $SyncHistoryEntriesTable extends SyncHistoryEntries
-    with TableInfo<$SyncHistoryEntriesTable, SyncHistoryEntry> {
+    with TableInfo<$SyncHistoryEntriesTable, SyncHistoryEntryRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -2572,7 +2572,7 @@ class $SyncHistoryEntriesTable extends SyncHistoryEntries
   static const String $name = 'sync_history_entries';
   @override
   VerificationContext validateIntegrity(
-    Insertable<SyncHistoryEntry> instance, {
+    Insertable<SyncHistoryEntryRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -2640,9 +2640,9 @@ class $SyncHistoryEntriesTable extends SyncHistoryEntries
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  SyncHistoryEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+  SyncHistoryEntryRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return SyncHistoryEntry(
+    return SyncHistoryEntryRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -2684,8 +2684,8 @@ class $SyncHistoryEntriesTable extends SyncHistoryEntries
   }
 }
 
-class SyncHistoryEntry extends DataClass
-    implements Insertable<SyncHistoryEntry> {
+class SyncHistoryEntryRow extends DataClass
+    implements Insertable<SyncHistoryEntryRow> {
   final int id;
   final String profileId;
   final DateTime timestamp;
@@ -2694,7 +2694,7 @@ class SyncHistoryEntry extends DataClass
   final int bytesTransferred;
   final int durationMs;
   final String? error;
-  const SyncHistoryEntry({
+  const SyncHistoryEntryRow({
     required this.id,
     required this.profileId,
     required this.timestamp,
@@ -2735,12 +2735,12 @@ class SyncHistoryEntry extends DataClass
     );
   }
 
-  factory SyncHistoryEntry.fromJson(
+  factory SyncHistoryEntryRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return SyncHistoryEntry(
+    return SyncHistoryEntryRow(
       id: serializer.fromJson<int>(json['id']),
       profileId: serializer.fromJson<String>(json['profileId']),
       timestamp: serializer.fromJson<DateTime>(json['timestamp']),
@@ -2766,7 +2766,7 @@ class SyncHistoryEntry extends DataClass
     };
   }
 
-  SyncHistoryEntry copyWith({
+  SyncHistoryEntryRow copyWith({
     int? id,
     String? profileId,
     DateTime? timestamp,
@@ -2775,7 +2775,7 @@ class SyncHistoryEntry extends DataClass
     int? bytesTransferred,
     int? durationMs,
     Value<String?> error = const Value.absent(),
-  }) => SyncHistoryEntry(
+  }) => SyncHistoryEntryRow(
     id: id ?? this.id,
     profileId: profileId ?? this.profileId,
     timestamp: timestamp ?? this.timestamp,
@@ -2785,8 +2785,8 @@ class SyncHistoryEntry extends DataClass
     durationMs: durationMs ?? this.durationMs,
     error: error.present ? error.value : this.error,
   );
-  SyncHistoryEntry copyWithCompanion(SyncHistoryEntriesCompanion data) {
-    return SyncHistoryEntry(
+  SyncHistoryEntryRow copyWithCompanion(SyncHistoryEntriesCompanion data) {
+    return SyncHistoryEntryRow(
       id: data.id.present ? data.id.value : this.id,
       profileId: data.profileId.present ? data.profileId.value : this.profileId,
       timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
@@ -2806,7 +2806,7 @@ class SyncHistoryEntry extends DataClass
 
   @override
   String toString() {
-    return (StringBuffer('SyncHistoryEntry(')
+    return (StringBuffer('SyncHistoryEntryRow(')
           ..write('id: $id, ')
           ..write('profileId: $profileId, ')
           ..write('timestamp: $timestamp, ')
@@ -2833,7 +2833,7 @@ class SyncHistoryEntry extends DataClass
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is SyncHistoryEntry &&
+      (other is SyncHistoryEntryRow &&
           other.id == this.id &&
           other.profileId == this.profileId &&
           other.timestamp == this.timestamp &&
@@ -2844,7 +2844,7 @@ class SyncHistoryEntry extends DataClass
           other.error == this.error);
 }
 
-class SyncHistoryEntriesCompanion extends UpdateCompanion<SyncHistoryEntry> {
+class SyncHistoryEntriesCompanion extends UpdateCompanion<SyncHistoryEntryRow> {
   final Value<int> id;
   final Value<String> profileId;
   final Value<DateTime> timestamp;
@@ -2875,7 +2875,7 @@ class SyncHistoryEntriesCompanion extends UpdateCompanion<SyncHistoryEntry> {
   }) : profileId = Value(profileId),
        timestamp = Value(timestamp),
        status = Value(status);
-  static Insertable<SyncHistoryEntry> custom({
+  static Insertable<SyncHistoryEntryRow> custom({
     Expression<int>? id,
     Expression<String>? profileId,
     Expression<DateTime>? timestamp,
@@ -2966,7 +2966,7 @@ class SyncHistoryEntriesCompanion extends UpdateCompanion<SyncHistoryEntry> {
 }
 
 class $TransferredFilesTable extends TransferredFiles
-    with TableInfo<$TransferredFilesTable, TransferredFile> {
+    with TableInfo<$TransferredFilesTable, TransferredFileRow> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -3047,7 +3047,7 @@ class $TransferredFilesTable extends TransferredFiles
   static const String $name = 'transferred_files';
   @override
   VerificationContext validateIntegrity(
-    Insertable<TransferredFile> instance, {
+    Insertable<TransferredFileRow> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -3092,9 +3092,9 @@ class $TransferredFilesTable extends TransferredFiles
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  TransferredFile map(Map<String, dynamic> data, {String? tablePrefix}) {
+  TransferredFileRow map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return TransferredFile(
+    return TransferredFileRow(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -3124,13 +3124,14 @@ class $TransferredFilesTable extends TransferredFiles
   }
 }
 
-class TransferredFile extends DataClass implements Insertable<TransferredFile> {
+class TransferredFileRow extends DataClass
+    implements Insertable<TransferredFileRow> {
   final int id;
   final int historyId;
   final String fileName;
   final int fileSize;
   final String? completedAt;
-  const TransferredFile({
+  const TransferredFileRow({
     required this.id,
     required this.historyId,
     required this.fileName,
@@ -3162,12 +3163,12 @@ class TransferredFile extends DataClass implements Insertable<TransferredFile> {
     );
   }
 
-  factory TransferredFile.fromJson(
+  factory TransferredFileRow.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return TransferredFile(
+    return TransferredFileRow(
       id: serializer.fromJson<int>(json['id']),
       historyId: serializer.fromJson<int>(json['historyId']),
       fileName: serializer.fromJson<String>(json['fileName']),
@@ -3187,21 +3188,21 @@ class TransferredFile extends DataClass implements Insertable<TransferredFile> {
     };
   }
 
-  TransferredFile copyWith({
+  TransferredFileRow copyWith({
     int? id,
     int? historyId,
     String? fileName,
     int? fileSize,
     Value<String?> completedAt = const Value.absent(),
-  }) => TransferredFile(
+  }) => TransferredFileRow(
     id: id ?? this.id,
     historyId: historyId ?? this.historyId,
     fileName: fileName ?? this.fileName,
     fileSize: fileSize ?? this.fileSize,
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
   );
-  TransferredFile copyWithCompanion(TransferredFilesCompanion data) {
-    return TransferredFile(
+  TransferredFileRow copyWithCompanion(TransferredFilesCompanion data) {
+    return TransferredFileRow(
       id: data.id.present ? data.id.value : this.id,
       historyId: data.historyId.present ? data.historyId.value : this.historyId,
       fileName: data.fileName.present ? data.fileName.value : this.fileName,
@@ -3214,7 +3215,7 @@ class TransferredFile extends DataClass implements Insertable<TransferredFile> {
 
   @override
   String toString() {
-    return (StringBuffer('TransferredFile(')
+    return (StringBuffer('TransferredFileRow(')
           ..write('id: $id, ')
           ..write('historyId: $historyId, ')
           ..write('fileName: $fileName, ')
@@ -3230,7 +3231,7 @@ class TransferredFile extends DataClass implements Insertable<TransferredFile> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is TransferredFile &&
+      (other is TransferredFileRow &&
           other.id == this.id &&
           other.historyId == this.historyId &&
           other.fileName == this.fileName &&
@@ -3238,7 +3239,7 @@ class TransferredFile extends DataClass implements Insertable<TransferredFile> {
           other.completedAt == this.completedAt);
 }
 
-class TransferredFilesCompanion extends UpdateCompanion<TransferredFile> {
+class TransferredFilesCompanion extends UpdateCompanion<TransferredFileRow> {
   final Value<int> id;
   final Value<int> historyId;
   final Value<String> fileName;
@@ -3259,7 +3260,7 @@ class TransferredFilesCompanion extends UpdateCompanion<TransferredFile> {
     this.completedAt = const Value.absent(),
   }) : historyId = Value(historyId),
        fileName = Value(fileName);
-  static Insertable<TransferredFile> custom({
+  static Insertable<TransferredFileRow> custom({
     Expression<int>? id,
     Expression<int>? historyId,
     Expression<String>? fileName,
@@ -3528,17 +3529,17 @@ class $$AppConfigsTableTableManager
         RootTableManager<
           _$AppDatabase,
           $AppConfigsTable,
-          AppConfig,
+          AppConfigRow,
           $$AppConfigsTableFilterComposer,
           $$AppConfigsTableOrderingComposer,
           $$AppConfigsTableAnnotationComposer,
           $$AppConfigsTableCreateCompanionBuilder,
           $$AppConfigsTableUpdateCompanionBuilder,
           (
-            AppConfig,
-            BaseReferences<_$AppDatabase, $AppConfigsTable, AppConfig>,
+            AppConfigRow,
+            BaseReferences<_$AppDatabase, $AppConfigsTable, AppConfigRow>,
           ),
-          AppConfig,
+          AppConfigRow,
           PrefetchHooks Function()
         > {
   $$AppConfigsTableTableManager(_$AppDatabase db, $AppConfigsTable table)
@@ -3604,14 +3605,17 @@ typedef $$AppConfigsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $AppConfigsTable,
-      AppConfig,
+      AppConfigRow,
       $$AppConfigsTableFilterComposer,
       $$AppConfigsTableOrderingComposer,
       $$AppConfigsTableAnnotationComposer,
       $$AppConfigsTableCreateCompanionBuilder,
       $$AppConfigsTableUpdateCompanionBuilder,
-      (AppConfig, BaseReferences<_$AppDatabase, $AppConfigsTable, AppConfig>),
-      AppConfig,
+      (
+        AppConfigRow,
+        BaseReferences<_$AppDatabase, $AppConfigsTable, AppConfigRow>,
+      ),
+      AppConfigRow,
       PrefetchHooks Function()
     >;
 typedef $$SyncProfilesTableCreateCompanionBuilder =
@@ -3662,7 +3666,7 @@ typedef $$SyncProfilesTableUpdateCompanionBuilder =
     });
 
 final class $$SyncProfilesTableReferences
-    extends BaseReferences<_$AppDatabase, $SyncProfilesTable, SyncProfile> {
+    extends BaseReferences<_$AppDatabase, $SyncProfilesTable, SyncProfileRow> {
   $$SyncProfilesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$ProfileLocalPathsTable, List<ProfileLocalPath>>
@@ -3741,7 +3745,10 @@ final class $$SyncProfilesTableReferences
     );
   }
 
-  static MultiTypedResultKey<$SyncHistoryEntriesTable, List<SyncHistoryEntry>>
+  static MultiTypedResultKey<
+    $SyncHistoryEntriesTable,
+    List<SyncHistoryEntryRow>
+  >
   _syncHistoryEntriesRefsTable(_$AppDatabase db) =>
       MultiTypedResultKey.fromTable(
         db.syncHistoryEntries,
@@ -4279,14 +4286,14 @@ class $$SyncProfilesTableTableManager
         RootTableManager<
           _$AppDatabase,
           $SyncProfilesTable,
-          SyncProfile,
+          SyncProfileRow,
           $$SyncProfilesTableFilterComposer,
           $$SyncProfilesTableOrderingComposer,
           $$SyncProfilesTableAnnotationComposer,
           $$SyncProfilesTableCreateCompanionBuilder,
           $$SyncProfilesTableUpdateCompanionBuilder,
-          (SyncProfile, $$SyncProfilesTableReferences),
-          SyncProfile,
+          (SyncProfileRow, $$SyncProfilesTableReferences),
+          SyncProfileRow,
           PrefetchHooks Function({
             bool profileLocalPathsRefs,
             bool profileFilterTypesRefs,
@@ -4421,7 +4428,7 @@ class $$SyncProfilesTableTableManager
                     return [
                       if (profileLocalPathsRefs)
                         await $_getPrefetchedData<
-                          SyncProfile,
+                          SyncProfileRow,
                           $SyncProfilesTable,
                           ProfileLocalPath
                         >(
@@ -4442,7 +4449,7 @@ class $$SyncProfilesTableTableManager
                         ),
                       if (profileFilterTypesRefs)
                         await $_getPrefetchedData<
-                          SyncProfile,
+                          SyncProfileRow,
                           $SyncProfilesTable,
                           ProfileFilterType
                         >(
@@ -4463,7 +4470,7 @@ class $$SyncProfilesTableTableManager
                         ),
                       if (profileCustomExcludesRefs)
                         await $_getPrefetchedData<
-                          SyncProfile,
+                          SyncProfileRow,
                           $SyncProfilesTable,
                           ProfileCustomExclude
                         >(
@@ -4484,9 +4491,9 @@ class $$SyncProfilesTableTableManager
                         ),
                       if (syncHistoryEntriesRefs)
                         await $_getPrefetchedData<
-                          SyncProfile,
+                          SyncProfileRow,
                           $SyncProfilesTable,
-                          SyncHistoryEntry
+                          SyncHistoryEntryRow
                         >(
                           currentTable: table,
                           referencedTable: $$SyncProfilesTableReferences
@@ -4515,14 +4522,14 @@ typedef $$SyncProfilesTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $SyncProfilesTable,
-      SyncProfile,
+      SyncProfileRow,
       $$SyncProfilesTableFilterComposer,
       $$SyncProfilesTableOrderingComposer,
       $$SyncProfilesTableAnnotationComposer,
       $$SyncProfilesTableCreateCompanionBuilder,
       $$SyncProfilesTableUpdateCompanionBuilder,
-      (SyncProfile, $$SyncProfilesTableReferences),
-      SyncProfile,
+      (SyncProfileRow, $$SyncProfilesTableReferences),
+      SyncProfileRow,
       PrefetchHooks Function({
         bool profileLocalPathsRefs,
         bool profileFilterTypesRefs,
@@ -5465,7 +5472,7 @@ final class $$SyncHistoryEntriesTableReferences
         BaseReferences<
           _$AppDatabase,
           $SyncHistoryEntriesTable,
-          SyncHistoryEntry
+          SyncHistoryEntryRow
         > {
   $$SyncHistoryEntriesTableReferences(
     super.$_db,
@@ -5495,7 +5502,7 @@ final class $$SyncHistoryEntriesTableReferences
     );
   }
 
-  static MultiTypedResultKey<$TransferredFilesTable, List<TransferredFile>>
+  static MultiTypedResultKey<$TransferredFilesTable, List<TransferredFileRow>>
   _transferredFilesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.transferredFiles,
     aliasName: $_aliasNameGenerator(
@@ -5770,14 +5777,14 @@ class $$SyncHistoryEntriesTableTableManager
         RootTableManager<
           _$AppDatabase,
           $SyncHistoryEntriesTable,
-          SyncHistoryEntry,
+          SyncHistoryEntryRow,
           $$SyncHistoryEntriesTableFilterComposer,
           $$SyncHistoryEntriesTableOrderingComposer,
           $$SyncHistoryEntriesTableAnnotationComposer,
           $$SyncHistoryEntriesTableCreateCompanionBuilder,
           $$SyncHistoryEntriesTableUpdateCompanionBuilder,
-          (SyncHistoryEntry, $$SyncHistoryEntriesTableReferences),
-          SyncHistoryEntry,
+          (SyncHistoryEntryRow, $$SyncHistoryEntriesTableReferences),
+          SyncHistoryEntryRow,
           PrefetchHooks Function({bool profileId, bool transferredFilesRefs})
         > {
   $$SyncHistoryEntriesTableTableManager(
@@ -5889,9 +5896,9 @@ class $$SyncHistoryEntriesTableTableManager
                     return [
                       if (transferredFilesRefs)
                         await $_getPrefetchedData<
-                          SyncHistoryEntry,
+                          SyncHistoryEntryRow,
                           $SyncHistoryEntriesTable,
-                          TransferredFile
+                          TransferredFileRow
                         >(
                           currentTable: table,
                           referencedTable: $$SyncHistoryEntriesTableReferences
@@ -5920,14 +5927,14 @@ typedef $$SyncHistoryEntriesTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $SyncHistoryEntriesTable,
-      SyncHistoryEntry,
+      SyncHistoryEntryRow,
       $$SyncHistoryEntriesTableFilterComposer,
       $$SyncHistoryEntriesTableOrderingComposer,
       $$SyncHistoryEntriesTableAnnotationComposer,
       $$SyncHistoryEntriesTableCreateCompanionBuilder,
       $$SyncHistoryEntriesTableUpdateCompanionBuilder,
-      (SyncHistoryEntry, $$SyncHistoryEntriesTableReferences),
-      SyncHistoryEntry,
+      (SyncHistoryEntryRow, $$SyncHistoryEntriesTableReferences),
+      SyncHistoryEntryRow,
       PrefetchHooks Function({bool profileId, bool transferredFilesRefs})
     >;
 typedef $$TransferredFilesTableCreateCompanionBuilder =
@@ -5949,7 +5956,11 @@ typedef $$TransferredFilesTableUpdateCompanionBuilder =
 
 final class $$TransferredFilesTableReferences
     extends
-        BaseReferences<_$AppDatabase, $TransferredFilesTable, TransferredFile> {
+        BaseReferences<
+          _$AppDatabase,
+          $TransferredFilesTable,
+          TransferredFileRow
+        > {
   $$TransferredFilesTableReferences(
     super.$_db,
     super.$_table,
@@ -6138,14 +6149,14 @@ class $$TransferredFilesTableTableManager
         RootTableManager<
           _$AppDatabase,
           $TransferredFilesTable,
-          TransferredFile,
+          TransferredFileRow,
           $$TransferredFilesTableFilterComposer,
           $$TransferredFilesTableOrderingComposer,
           $$TransferredFilesTableAnnotationComposer,
           $$TransferredFilesTableCreateCompanionBuilder,
           $$TransferredFilesTableUpdateCompanionBuilder,
-          (TransferredFile, $$TransferredFilesTableReferences),
-          TransferredFile,
+          (TransferredFileRow, $$TransferredFilesTableReferences),
+          TransferredFileRow,
           PrefetchHooks Function({bool historyId})
         > {
   $$TransferredFilesTableTableManager(
@@ -6248,14 +6259,14 @@ typedef $$TransferredFilesTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $TransferredFilesTable,
-      TransferredFile,
+      TransferredFileRow,
       $$TransferredFilesTableFilterComposer,
       $$TransferredFilesTableOrderingComposer,
       $$TransferredFilesTableAnnotationComposer,
       $$TransferredFilesTableCreateCompanionBuilder,
       $$TransferredFilesTableUpdateCompanionBuilder,
-      (TransferredFile, $$TransferredFilesTableReferences),
-      TransferredFile,
+      (TransferredFileRow, $$TransferredFilesTableReferences),
+      TransferredFileRow,
       PrefetchHooks Function({bool historyId})
     >;
 

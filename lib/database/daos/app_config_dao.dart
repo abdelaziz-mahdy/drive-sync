@@ -39,7 +39,7 @@ class AppConfigDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  AppConfig _rowToConfig(AppConfigData row) {
+  AppConfig _rowToConfig(AppConfigRow row) {
     return AppConfig(
       themeMode: _parseThemeMode(row.themeMode),
       launchAtLogin: row.launchAtLogin,

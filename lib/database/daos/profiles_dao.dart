@@ -140,7 +140,7 @@ class ProfilesDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Future<SyncProfile> _rowToProfile(SyncProfileData row) async {
+  Future<SyncProfile> _rowToProfile(SyncProfileRow row) async {
     final paths = await (select(profileLocalPaths)
           ..where((t) => t.profileId.equals(row.id)))
         .get();

@@ -1,33 +1,34 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../database/daos/profiles_dao.dart';
 import '../models/sync_profile.dart';
-import 'app_config_provider.dart';
+import 'database_provider.dart';
 
 /// Manages the list of sync profiles.
 class ProfilesNotifier extends AsyncNotifier<List<SyncProfile>> {
   @override
   Future<List<SyncProfile>> build() async {
-    final store = ref.read(configStoreProvider);
-    return store.loadProfiles();
+    final dao = ProfilesDao(ref.read(appDatabaseProvider));
+    return dao.loadAll();
   }
 
   Future<void> addProfile(SyncProfile profile) async {
-    final store = ref.read(configStoreProvider);
-    await store.saveProfile(profile);
-    final profiles = await store.loadProfiles();
+    final dao = ProfilesDao(ref.read(appDatabaseProvider));
+    await dao.saveProfile(profile);
+    final profiles = await dao.loadAll();
     state = AsyncData(profiles);
   }
 
   Future<void> updateProfile(SyncProfile profile) async {
-    final store = ref.read(configStoreProvider);
-    await store.saveProfile(profile);
-    final profiles = await store.loadProfiles();
+    final dao = ProfilesDao(ref.read(appDatabaseProvider));
+    await dao.saveProfile(profile);
+    final profiles = await dao.loadAll();
     state = AsyncData(profiles);
   }
 
   Future<void> deleteProfile(String profileId) async {
-    final store = ref.read(configStoreProvider);
-    await store.deleteProfile(profileId);
-    final profiles = await store.loadProfiles();
+    final dao = ProfilesDao(ref.read(appDatabaseProvider));
+    await dao.deleteProfile(profileId);
+    final profiles = await dao.loadAll();
     state = AsyncData(profiles);
   }
 

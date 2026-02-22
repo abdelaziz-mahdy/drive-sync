@@ -11,7 +11,7 @@ SyncProfile _$SyncProfileFromJson(Map<String, dynamic> json) => SyncProfile(
   name: json['name'] as String,
   remoteName: json['remoteName'] as String,
   cloudFolder: json['cloudFolder'] as String,
-  localPaths: SyncProfile._localPathsFromJson(json['localPaths'] ?? json['localPath']),
+  localPaths: SyncProfile._localPathsFromJson(json['localPaths']),
   includeTypes: (json['includeTypes'] as List<dynamic>)
       .map((e) => e as String)
       .toList(),
@@ -57,8 +57,8 @@ Map<String, dynamic> _$SyncProfileToJson(SyncProfile instance) =>
       'bandwidthLimit': instance.bandwidthLimit,
       'maxTransfers': instance.maxTransfers,
       'checkFirst': instance.checkFirst,
-      'preserveSourceDir': instance.preserveSourceDir,
       'lastSyncTime': instance.lastSyncTime?.toIso8601String(),
       'lastSyncStatus': instance.lastSyncStatus,
+      'preserveSourceDir': instance.preserveSourceDir,
       'lastSyncError': instance.lastSyncError,
     };

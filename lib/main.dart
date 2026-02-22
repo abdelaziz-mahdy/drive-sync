@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app.dart';
-import 'providers/app_config_provider.dart';
+import 'database/app_database.dart';
+import 'database/migration.dart';
+import 'providers/database_provider.dart';
 import 'providers/rclone_provider.dart';
 import 'providers/talker_provider.dart';
-import 'services/config_store.dart';
 import 'services/rclone_daemon_manager.dart';
 import 'services/rclone_service.dart';
+import 'services/secure_storage.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,19 +19,24 @@ Future<void> main() async {
   final appSupportDir = await getApplicationSupportDirectory();
   final dirPath = appSupportDir.path;
 
-  // 2. Create ConfigStore with the directory path.
-  final configStore = ConfigStore(appSupportDir: dirPath);
+  // 2. Create the Drift database.
+  final db = AppDatabase(dirPath);
 
-  // 3. Load or generate RC credentials for daemon auth.
-  var creds = await configStore.loadRcCredentials();
+  // 3. Run one-time migration from config.json if it exists.
+  final migration = JsonToDriftMigration(appSupportDir: dirPath, db: db);
+  await migration.migrateIfNeeded();
+
+  // 4. Load or generate RC credentials for daemon auth.
+  final secureStorage = SecureStorageService();
+  var creds = await secureStorage.loadRcCredentials();
   if (creds == null) {
-    final user = ConfigStore.generateCredential();
-    final pass = ConfigStore.generateCredential();
-    await configStore.saveRcCredentials(user, pass);
+    final user = SecureStorageService.generateCredential();
+    final pass = SecureStorageService.generateCredential();
+    await secureStorage.saveRcCredentials(user, pass);
     creds = (user: user, pass: pass);
   }
 
-  // 4. Create the daemon manager and rclone service.
+  // 5. Create the daemon manager and rclone service.
   final daemonManager = RcloneDaemonManager(
     appSupportDir: dirPath,
     talker: talker,
@@ -40,12 +47,11 @@ Future<void> main() async {
     talker: talker,
   );
 
-  // 5. Run the app with provider overrides so the previously-throwing
-  //    providers are now backed by real instances.
+  // 6. Run the app with provider overrides.
   runApp(
     ProviderScope(
       overrides: [
-        configStoreProvider.overrideWithValue(configStore),
+        appDatabaseProvider.overrideWithValue(db),
         rcloneServiceProvider.overrideWithValue(rcloneService),
         daemonManagerProvider.overrideWithValue(daemonManager),
       ],

@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../database/daos/profiles_dao.dart';
 import '../services/rclone_daemon_manager.dart';
 import '../services/rclone_service.dart';
-import 'app_config_provider.dart';
+import '../services/secure_storage.dart';
+import 'database_provider.dart';
 import 'rclone_provider.dart';
 import 'talker_provider.dart';
 
@@ -157,8 +159,8 @@ class StartupNotifier extends Notifier<StartupState> {
         talker.warning('[Startup] Could not list remotes: $e');
       }
 
-      final configStore = ref.read(configStoreProvider);
-      final profiles = await configStore.loadProfiles();
+      final profilesDao = ProfilesDao(ref.read(appDatabaseProvider));
+      final profiles = await profilesDao.loadAll();
       talker.info('[Startup] Found ${profiles.length} profile(s)');
 
       final needsOnboarding = remotes.isEmpty && profiles.isEmpty;
@@ -183,8 +185,8 @@ class StartupNotifier extends Notifier<StartupState> {
 
   /// Starts the rclone daemon using stored credentials.
   Future<void> _startDaemon(RcloneDaemonManager daemonManager) async {
-    final configStore = ref.read(configStoreProvider);
-    final creds = await configStore.loadRcCredentials();
+    final secureStorage = SecureStorageService();
+    final creds = await secureStorage.loadRcCredentials();
     if (creds == null) {
       throw Exception('RC credentials not found in secure storage.');
     }
