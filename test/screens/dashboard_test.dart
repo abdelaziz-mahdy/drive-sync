@@ -4,21 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:drive_sync/models/sync_mode.dart';
 import 'package:drive_sync/models/sync_profile.dart';
-import 'package:drive_sync/providers/app_config_provider.dart';
+import 'package:drive_sync/providers/database_provider.dart';
 import 'package:drive_sync/providers/profiles_provider.dart';
 import 'package:drive_sync/screens/dashboard/dashboard_screen.dart';
 import 'package:drive_sync/screens/dashboard/profile_card.dart';
-import 'package:drive_sync/services/config_store.dart';
 
-class FakeConfigStore extends ConfigStore {
-  final List<SyncProfile> _profiles;
-
-  FakeConfigStore.withProfiles(this._profiles)
-      : super(appSupportDir: '/tmp/test');
-
-  @override
-  Future<List<SyncProfile>> loadProfiles() async => _profiles;
-}
+import '../database/test_database.dart';
 
 class TestProfilesNotifier extends ProfilesNotifier {
   final List<SyncProfile> _profiles;
@@ -186,12 +177,12 @@ void main() {
 
   group('DashboardScreen', () {
     testWidgets('shows empty state when no profiles', (tester) async {
-      final fakeStore = FakeConfigStore.withProfiles([]);
+      final db = createTestDatabase();
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configStoreProvider.overrideWithValue(fakeStore),
+            appDatabaseProvider.overrideWithValue(db),
             profilesProvider.overrideWith(() => TestProfilesNotifier([])),
           ],
           child: const MaterialApp(home: DashboardScreen()),
@@ -203,6 +194,8 @@ void main() {
       expect(find.text('No Sync Profiles'), findsOneWidget);
       expect(
           find.text('Create your first sync profile'), findsOneWidget);
+
+      await db.close();
     });
 
     testWidgets('shows profile cards when profiles exist', (tester) async {
@@ -224,13 +217,14 @@ void main() {
           customExcludes: [],
         ),
       ];
-      final fakeStore = FakeConfigStore.withProfiles(profiles);
+      final db = createTestDatabase();
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            configStoreProvider.overrideWithValue(fakeStore),
-            profilesProvider.overrideWith(() => TestProfilesNotifier(profiles)),
+            appDatabaseProvider.overrideWithValue(db),
+            profilesProvider
+                .overrideWith(() => TestProfilesNotifier(profiles)),
           ],
           child: const MaterialApp(home: DashboardScreen()),
         ),
@@ -240,6 +234,8 @@ void main() {
 
       expect(find.text('Work Docs'), findsOneWidget);
       expect(find.text('Sync Now'), findsOneWidget);
+
+      await db.close();
     });
   });
 }
