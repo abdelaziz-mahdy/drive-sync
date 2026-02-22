@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../database/daos/history_dao.dart';
-import '../../models/sync_profile.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/profiles_provider.dart';
 import '../../utils/format_utils.dart';
