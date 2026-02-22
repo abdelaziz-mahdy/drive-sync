@@ -154,6 +154,14 @@ class SyncQueueNotifier extends Notifier<SyncQueueState> {
     }
 
     try {
+      // Reset transfer stats before starting so we only capture this sync's files.
+      final rcloneService = ref.read(rcloneServiceProvider);
+      try {
+        await rcloneService.resetStats();
+      } catch (_) {
+        // Best-effort: stats reset may fail if daemon is not ready.
+      }
+
       final job = await executor.executeSync(
         profile,
         onProgress: (job) {
@@ -166,7 +174,6 @@ class SyncQueueNotifier extends Notifier<SyncQueueState> {
       // Collect transferred file records (best-effort).
       List<TransferredFileRecord> transferredFiles = [];
       try {
-        final rcloneService = ref.read(rcloneServiceProvider);
         final transfers = await rcloneService.getCompletedTransfers(
           group: 'job/${job.jobId}',
         );
