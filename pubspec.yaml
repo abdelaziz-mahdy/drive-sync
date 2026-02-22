@@ -34,6 +34,20 @@ dev_dependencies:
   mockito: ^5.0.0
   http_mock_adapter: ^0.6.0
   fake_async: ^1.3.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  image_path: "assets/app_icon.png"
+  macos:
+    generate: true
+    image_path: "assets/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/app_icon.png"
+    icon_size: 256
+  linux:
+    generate: true
+    image_path: "assets/app_icon.png"

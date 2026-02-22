@@ -18,23 +18,25 @@ class RemoteSetupStep extends ConsumerWidget {
     final remotesAsync = ref.watch(remotesProvider);
     final theme = Theme.of(context);
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.cloud_outlined,
-              size: 64,
-              color: theme.colorScheme.primary,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Remote Configuration',
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(32),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.cloud_outlined,
+                size: 56,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Remote Configuration',
+                style: theme.textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
             Text(
               'Configure at least one remote (e.g., Google Drive) using rclone.',
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -48,7 +50,7 @@ class RemoteSetupStep extends ConsumerWidget {
               subtitle: 'Run this command to set up a remote:',
               runButtonLabel: 'Open in Terminal',
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             remotesAsync.when(
               data: (remotes) {
                 // Notify parent about status
@@ -124,7 +126,8 @@ class RemoteSetupStep extends ConsumerWidget {
                 ],
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
