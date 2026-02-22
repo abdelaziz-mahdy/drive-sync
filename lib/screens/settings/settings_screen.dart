@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:talker_flutter/talker_flutter.dart';
@@ -137,17 +139,29 @@ class SettingsScreen extends ConsumerWidget {
                 ListTile(
                   title: const Text('Manage Remotes'),
                   subtitle: const Text(
-                    'Open a terminal and run: rclone config',
+                    'Opens a terminal to add, edit, or remove cloud remotes',
                   ),
                   trailing: const Icon(Icons.terminal),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Open a terminal and run "rclone config" to manage remotes.',
-                        ),
-                      ),
-                    );
+                  onTap: () async {
+                    if (Platform.isMacOS) {
+                      await Process.start('osascript', [
+                        '-e',
+                        'tell app "Terminal" to do script "rclone config"',
+                      ]);
+                    } else if (Platform.isLinux) {
+                      // Try common Linux terminal emulators
+                      try {
+                        await Process.start('x-terminal-emulator', ['-e', 'rclone', 'config']);
+                      } catch (_) {
+                        try {
+                          await Process.start('gnome-terminal', ['--', 'rclone', 'config']);
+                        } catch (_) {
+                          await Process.start('xterm', ['-e', 'rclone', 'config']);
+                        }
+                      }
+                    } else if (Platform.isWindows) {
+                      await Process.start('cmd', ['/c', 'start', 'cmd', '/k', 'rclone', 'config']);
+                    }
                   },
                 ),
                 const Divider(height: 1),

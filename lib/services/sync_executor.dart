@@ -28,7 +28,7 @@ class SyncExecutor {
     required this.gitignoreService,
     required this.talker,
     this.errorClassifier = const ErrorClassifier(),
-    this.pollInterval = const Duration(seconds: 2),
+    this.pollInterval = const Duration(milliseconds: 500),
   });
 
   /// Execute a sync (or dry-run) for the given [profile].
@@ -121,9 +121,13 @@ class SyncExecutor {
     );
     onProgress?.call(job);
 
-    // Step 4: Poll loop.
+    // Step 4: Poll loop — first poll fires immediately, then waits between polls.
+    var isFirstPoll = true;
     while (true) {
-      await Future.delayed(pollInterval);
+      if (!isFirstPoll) {
+        await Future.delayed(pollInterval);
+      }
+      isFirstPoll = false;
 
       try {
         final statusData = await rcloneService.getJobStatus(jobId);

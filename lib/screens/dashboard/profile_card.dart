@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/sync_history_entry.dart';
+import '../../models/sync_job.dart';
 import '../../models/sync_profile.dart';
+import '../../providers/profiles_provider.dart';
 import '../../providers/sync_executor_provider.dart';
+import '../../providers/sync_history_provider.dart';
 import '../../providers/sync_jobs_provider.dart';
 import '../../widgets/progress_bar.dart';
 import '../../widgets/status_indicator.dart';
@@ -16,11 +20,12 @@ class ProfileCard extends ConsumerWidget {
 
   final SyncProfile profile;
 
-  void _startSync(BuildContext context, WidgetRef ref, {bool dryRun = false}) {
+  void _startSync(BuildContext context, WidgetRef ref, {bool dryRun = false}) async {
     final executor = ref.read(syncExecutorProvider);
     final jobsNotifier = ref.read(syncJobsProvider.notifier);
+    final startTime = DateTime.now();
 
-    executor.executeSync(
+    final job = await executor.executeSync(
       profile,
       dryRun: dryRun,
       onProgress: (job) => jobsNotifier.updateJob(profile.id, job),
@@ -28,12 +33,47 @@ class ProfileCard extends ConsumerWidget {
         if (context.mounted) {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => DryRunResultsScreen(preview: preview),
+              builder: (_) => DryRunResultsScreen(
+                preview: preview,
+                onExecuteSync: () {
+                  Navigator.of(context).pop();
+                  _startSync(context, ref);
+                },
+              ),
             ),
           );
         }
       },
     );
+
+    // After sync completes (skip for dry runs), update profile and history
+    if (!dryRun) {
+      final isSuccess = job.status == SyncJobStatus.finished;
+
+      // Update profile's last sync status
+      ref.read(profilesProvider.notifier).updateProfileStatus(
+            profile.id,
+            status: isSuccess ? 'success' : 'error',
+            error: job.error,
+            lastSyncTime: DateTime.now(),
+          );
+
+      // Add history entry
+      ref.read(syncHistoryProvider.notifier).addEntry(
+            SyncHistoryEntry(
+              profileId: profile.id,
+              timestamp: DateTime.now(),
+              status: isSuccess ? 'success' : 'error',
+              filesTransferred: job.filesTransferred,
+              bytesTransferred: job.bytesTransferred,
+              duration: DateTime.now().difference(startTime),
+              error: job.error,
+            ),
+          );
+
+      // Clear the active job
+      jobsNotifier.removeJob(profile.id);
+    }
   }
 
   void _editProfile(BuildContext context) {
