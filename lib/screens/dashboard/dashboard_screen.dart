@@ -7,6 +7,7 @@ import '../../widgets/empty_state.dart';
 import '../../widgets/skeleton_loader.dart';
 import '../profile_editor/profile_editor_screen.dart';
 import 'profile_card.dart';
+import 'sync_banner.dart';
 
 /// Dashboard screen showing a responsive grid of sync profile cards.
 class DashboardScreen extends ConsumerWidget {
@@ -76,15 +77,21 @@ class DashboardScreen extends ConsumerWidget {
 
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                child: Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: profiles.map((profile) {
-                    return SizedBox(
-                      width: cardWidth,
-                      child: ProfileCard(profile: profile),
-                    );
-                  }).toList(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SyncBanner(),
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: profiles.map((profile) {
+                        return SizedBox(
+                          width: cardWidth,
+                          child: ProfileCard(profile: profile),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
               );
             },
