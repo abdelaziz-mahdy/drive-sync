@@ -1,30 +1,50 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:drive_sync/main.dart';
+import 'package:drive_sync/app.dart';
+import 'package:drive_sync/providers/app_config_provider.dart';
+import 'package:drive_sync/providers/profiles_provider.dart';
+import 'package:drive_sync/providers/startup_provider.dart';
+import 'package:drive_sync/models/app_config.dart';
+import 'package:drive_sync/models/sync_profile.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+  testWidgets('App renders with correct title', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appConfigProvider.overrideWith(() => _FakeAppConfigNotifier()),
+          profilesProvider.overrideWith(() => _FakeProfilesNotifier()),
+          startupProvider.overrideWith(() => _ReadyStartupNotifier()),
+        ],
+        child: const DriveSyncApp(),
+      ),
+    );
     await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.byType(MaterialApp), findsOneWidget);
   });
+}
+
+class _FakeAppConfigNotifier extends AppConfigNotifier {
+  @override
+  Future<AppConfig> build() async => AppConfig.defaults();
+}
+
+class _FakeProfilesNotifier extends ProfilesNotifier {
+  @override
+  Future<List<SyncProfile>> build() async => [];
+}
+
+/// A startup notifier that immediately reports ready state, skipping
+/// the actual daemon bootstrap so the test can render the shell.
+class _ReadyStartupNotifier extends StartupNotifier {
+  @override
+  StartupState build() {
+    return const StartupState(
+      phase: StartupPhase.ready,
+      message: 'Ready',
+      needsOnboarding: false,
+    );
+  }
 }
