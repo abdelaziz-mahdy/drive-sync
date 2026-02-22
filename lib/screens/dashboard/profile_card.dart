@@ -54,8 +54,8 @@ class ProfileCard extends ConsumerWidget {
     if (!dryRun) {
       final isSuccess = job.status == SyncJobStatus.finished;
 
-      // Update profile's last sync status.
-      profilesNotifier.updateProfileStatus(
+      // Update profile's last sync status (await to avoid config file race).
+      await profilesNotifier.updateProfileStatus(
         profileId,
         status: isSuccess ? 'success' : 'error',
         error: job.error,
@@ -63,7 +63,7 @@ class ProfileCard extends ConsumerWidget {
       );
 
       // Add history entry.
-      historyNotifier.addEntry(
+      await historyNotifier.addEntry(
         SyncHistoryEntry(
           profileId: profileId,
           timestamp: DateTime.now(),
