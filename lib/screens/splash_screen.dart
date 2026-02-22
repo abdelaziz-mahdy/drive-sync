@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/startup_provider.dart';
+import '../widgets/command_card.dart';
 
 /// Splash screen shown while the app is performing its startup sequence.
 ///
@@ -39,59 +40,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (Platform.isLinux) return 'sudo apt install rclone';
     if (Platform.isWindows) return 'winget install Rclone.Rclone';
     return 'curl https://rclone.org/install.sh | sudo bash';
-  }
-
-  /// Opens a terminal and runs the rclone install command.
-  Future<void> _installInTerminal() async {
-    try {
-      if (Platform.isMacOS) {
-        // Use osascript to open Terminal.app and run the command.
-        await Process.start('osascript', [
-          '-e',
-          'tell application "Terminal" to do script "$_installCommand"',
-          '-e',
-          'tell application "Terminal" to activate',
-        ]);
-      } else if (Platform.isLinux) {
-        // Try common terminal emulators in order.
-        final terminals = ['gnome-terminal', 'konsole', 'xterm', 'x-terminal-emulator'];
-        for (final terminal in terminals) {
-          try {
-            if (terminal == 'gnome-terminal') {
-              await Process.start(terminal, ['--', 'bash', '-c', '$_installCommand; echo "Press Enter to close..."; read']);
-            } else if (terminal == 'konsole') {
-              await Process.start(terminal, ['-e', 'bash', '-c', '$_installCommand; echo "Press Enter to close..."; read']);
-            } else {
-              await Process.start(terminal, ['-e', _installCommand]);
-            }
-            break;
-          } catch (_) {
-            continue;
-          }
-        }
-      } else if (Platform.isWindows) {
-        await Process.start('cmd', ['/c', 'start', 'cmd', '/k', _installCommand]);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not open terminal. Please run manually:\n$_installCommand'),
-          ),
-        );
-      }
-    }
-  }
-
-  /// Copies the install command to the clipboard.
-  void _copyCommand() {
-    Clipboard.setData(ClipboardData(text: _installCommand));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Command copied to clipboard'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 
   @override
@@ -173,94 +121,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            // Install command card.
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: colorScheme.outlineVariant,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Install rclone',
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Run this command in your terminal:',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  // Command display with copy button.
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: colorScheme.surface,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: colorScheme.outline.withValues(alpha: 0.3),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.terminal,
-                                          size: 16,
-                                          color: colorScheme.primary,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: SelectableText(
-                                            _installCommand,
-                                            style: theme.textTheme.bodyMedium?.copyWith(
-                                              fontFamily: 'monospace',
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.copy, size: 18),
-                                          tooltip: 'Copy command',
-                                          onPressed: _copyCommand,
-                                          visualDensity: VisualDensity.compact,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            CommandCard(
+                              command: _installCommand,
+                              title: 'Install rclone',
+                              subtitle:
+                                  'Run this command in your terminal:',
+                              runButtonLabel: 'Install in Terminal',
                             ),
                             const SizedBox(height: 16),
-                            // Action buttons.
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                FilledButton.icon(
-                                  onPressed: _installInTerminal,
-                                  icon: const Icon(Icons.terminal, size: 18),
-                                  label: const Text('Install in Terminal'),
-                                ),
-                                const SizedBox(width: 12),
-                                FilledButton.tonalIcon(
-                                  onPressed: _retry,
-                                  icon: const Icon(Icons.refresh, size: 18),
-                                  label: const Text('Retry'),
-                                ),
-                              ],
+                            FilledButton.icon(
+                              onPressed: _retry,
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('Retry'),
                             ),
                           ],
                         ),

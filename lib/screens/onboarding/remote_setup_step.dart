@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/rclone_provider.dart';
+import '../../widgets/command_card.dart';
 
-/// Step 2: Check for configured rclone remotes.
+/// Step 1: Check for configured rclone remotes.
 class RemoteSetupStep extends ConsumerWidget {
   const RemoteSetupStep({
     super.key,
@@ -42,27 +43,10 @@ class RemoteSetupStep extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(
-                'rclone config',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Open a terminal and run the command above to set up a remote.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-              textAlign: TextAlign.center,
+            const CommandCard(
+              command: 'rclone config',
+              subtitle: 'Run this command to set up a remote:',
+              runButtonLabel: 'Open in Terminal',
             ),
             const SizedBox(height: 24),
             remotesAsync.when(
