@@ -22,11 +22,21 @@ jobs:
       - run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter build macos --release
 
-      - name: Create DMG
+      - name: Install create-dmg
+        run: brew install create-dmg
+
+      - name: Create DMG with drag-to-Applications
         run: |
-          APP_PATH="build/macos/Build/Products/Release/drive_sync.app"
-          DMG_NAME="DriveSync-macOS.dmg"
-          hdiutil create -volname "DriveSync" -srcfolder "$APP_PATH" -ov -format UDZO "$DMG_NAME"
+          create-dmg \
+            --volname "DriveSync" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 128 \
+            --icon "drive_sync.app" 150 185 \
+            --hide-extension "drive_sync.app" \
+            --app-drop-link 450 185 \
+            "DriveSync-macOS.dmg" \
+            "build/macos/Build/Products/Release/" || true
 
       - uses: actions/upload-artifact@v4
         with:
@@ -45,21 +55,69 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev libsecret-1-dev libjsoncpp-dev
+          sudo apt-get install -y \
+            clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev \
+            libsecret-1-dev libjsoncpp-dev dpkg-dev
 
       - run: flutter pub get
       - run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter build linux --release
 
-      - name: Create archive
+      - name: Package as tar.gz
         run: |
           cd build/linux/x64/release/bundle
           tar -czf ../../../../../DriveSync-Linux-x64.tar.gz .
 
+      - name: Package as .deb
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f1)
+          PKG_DIR="drivesync_${VERSION}_amd64"
+
+          mkdir -p "$PKG_DIR/DEBIAN"
+          mkdir -p "$PKG_DIR/usr/bin"
+          mkdir -p "$PKG_DIR/usr/lib/drivesync"
+          mkdir -p "$PKG_DIR/usr/share/applications"
+          mkdir -p "$PKG_DIR/usr/share/icons/hicolor/256x256/apps"
+
+          cp -r build/linux/x64/release/bundle/. "$PKG_DIR/usr/lib/drivesync/"
+
+          printf '#!/bin/bash\nexec /usr/lib/drivesync/drive_sync "$@"\n' \
+            > "$PKG_DIR/usr/bin/drivesync"
+          chmod +x "$PKG_DIR/usr/bin/drivesync"
+
+          cp assets/app_icon.png \
+            "$PKG_DIR/usr/share/icons/hicolor/256x256/apps/drivesync.png"
+
+          cat > "$PKG_DIR/usr/share/applications/drivesync.desktop" <<'DESKTOP'
+          [Desktop Entry]
+          Name=DriveSync
+          Comment=Selective file-type syncing with Google Drive via rclone
+          Exec=/usr/lib/drivesync/drive_sync
+          Icon=drivesync
+          Type=Application
+          Categories=Utility;
+          DESKTOP
+
+          cat > "$PKG_DIR/DEBIAN/control" <<CONTROL
+          Package: drivesync
+          Version: $VERSION
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Abdelaziz Mahdy
+          Description: DriveSync - Selective Google Drive file-type sync via rclone
+          CONTROL
+
+          dpkg-deb --build --root-owner-group "$PKG_DIR"
+          mv "${PKG_DIR}.deb" "DriveSync-Linux-amd64.deb"
+
       - uses: actions/upload-artifact@v4
         with:
           name: linux-build
-          path: DriveSync-Linux-x64.tar.gz
+          path: |
+            DriveSync-Linux-x64.tar.gz
+            DriveSync-Linux-amd64.deb
 
   build-windows:
     runs-on: windows-latest
@@ -74,15 +132,68 @@ jobs:
       - run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter build windows --release
 
-      - name: Create archive
+      - name: Install Inno Setup
+        run: choco install innosetup --yes
+        shell: pwsh
+
+      - name: Create Inno Setup script
         shell: pwsh
         run: |
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "DriveSync-Windows-x64.zip"
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version: (.+)\+').Matches.Groups[1].Value
+          $script = @"
+          [Setup]
+          AppName=DriveSync
+          AppVersion=$version
+          AppPublisher=Abdelaziz Mahdy
+          DefaultDirName={autopf}\DriveSync
+          DefaultGroupName=DriveSync
+          OutputDir=.
+          OutputBaseFilename=DriveSync-Windows-Setup
+          Compression=lzma
+          SolidCompression=yes
+          ArchitecturesInstallIn64BitMode=x64compatible
+          SetupIconFile=assets\app_icon.ico
+
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+
+          [Tasks]
+          Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+
+          [Files]
+          Source: "build\windows\x64\runner\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{group}\DriveSync"; Filename: "{app}\drive_sync.exe"
+          Name: "{autodesktop}\DriveSync"; Filename: "{app}\drive_sync.exe"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\drive_sync.exe"; Description: "Launch DriveSync"; Flags: nowait postinstall skipifsilent
+          "@
+          $script | Out-File -FilePath "installer.iss" -Encoding UTF8
+
+      - name: Convert icon for installer
+        shell: pwsh
+        run: |
+          # Use magick if available, otherwise skip icon
+          if (Get-Command magick -ErrorAction SilentlyContinue) {
+            magick assets/app_icon.png -resize 256x256 assets/app_icon.ico
+          } else {
+            # Create a minimal .ico from png using PowerShell
+            Copy-Item assets/app_icon.png assets/app_icon.ico
+            # Remove the SetupIconFile line since we don't have a real .ico
+            (Get-Content installer.iss) -replace 'SetupIconFile=.*', '' | Set-Content installer.iss
+          }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: DriveSync-Windows-x64.zip
+          path: DriveSync-Windows-Setup.exe
 
   create-release:
     needs: [build-macos, build-linux, build-windows]
@@ -98,7 +209,6 @@ jobs:
         id: changelog
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          # Extract section for this version from CHANGELOG.md
           BODY=$(awk "/^## ${VERSION}/{flag=1; next} /^## /{flag=0} flag" CHANGELOG.md)
           if [ -z "$BODY" ]; then
             BODY="Release ${VERSION}"
@@ -114,4 +224,5 @@ jobs:
           files: |
             artifacts/macos-build/DriveSync-macOS.dmg
             artifacts/linux-build/DriveSync-Linux-x64.tar.gz
-            artifacts/windows-build/DriveSync-Windows-x64.zip
+            artifacts/linux-build/DriveSync-Linux-amd64.deb
+            artifacts/windows-build/DriveSync-Windows-Setup.exe
