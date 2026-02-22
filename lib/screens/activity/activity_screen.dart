@@ -5,13 +5,14 @@ import '../../models/sync_mode.dart';
 import '../../models/sync_profile.dart';
 import '../../providers/profiles_provider.dart';
 import '../../providers/sync_history_provider.dart';
-import '../../providers/sync_jobs_provider.dart';
+import '../../providers/sync_queue_provider.dart';
+import '../../utils/format_utils.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/skeleton_loader.dart';
 import 'running_job_card.dart';
 import 'sync_history_tile.dart';
 
-/// Two-section screen: active syncs (top) and history (bottom).
+/// Two-section screen: active syncs (top), queued (middle), and history (bottom).
 class ActivityScreen extends ConsumerWidget {
   const ActivityScreen({super.key});
 
@@ -33,12 +34,14 @@ class ActivityScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final jobs = ref.watch(syncJobsProvider);
+    final queueState = ref.watch(syncQueueProvider);
     final historyAsync = ref.watch(syncHistoryProvider);
     final profilesAsync = ref.watch(profilesProvider);
 
     final profiles = profilesAsync.value ?? [];
-    final runningJobs = jobs.values.where((j) => j.isRunning).toList();
+    final activeJob = queueState.activeJob;
+    final hasActiveJob = activeJob != null && activeJob.isRunning;
+    final pendingQueue = queueState.queue;
 
     return Scaffold(
       body: CustomScrollView(
@@ -51,9 +54,9 @@ class ActivityScreen extends ConsumerWidget {
                 children: [
                   Text('Active Syncs', style: theme.textTheme.titleMedium),
                   const SizedBox(width: 8),
-                  if (runningJobs.isNotEmpty)
+                  if (hasActiveJob)
                     Badge(
-                      label: Text('${runningJobs.length}'),
+                      label: const Text('1'),
                       backgroundColor: colorScheme.primary,
                       textColor: colorScheme.onPrimary,
                     ),
@@ -61,7 +64,7 @@ class ActivityScreen extends ConsumerWidget {
               ),
             ),
           ),
-          if (runningJobs.isEmpty)
+          if (!hasActiveJob)
             SliverToBoxAdapter(
               child: Padding(
                 padding:
@@ -91,21 +94,72 @@ class ActivityScreen extends ConsumerWidget {
           else
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
+              sliver: SliverList.list(
+                children: [
+                  RunningJobCard(
+                    job: activeJob,
+                    profileName:
+                        _profileName(activeJob.profileId, profiles),
+                    syncMode:
+                        _profileSyncMode(activeJob.profileId, profiles),
+                    onCancel: () =>
+                        ref.read(syncQueueProvider.notifier).cancelActive(),
+                  ),
+                ],
+              ),
+            ),
+
+          // --- Queued Section ---
+          if (pendingQueue.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                child: Row(
+                  children: [
+                    Text('Queued', style: theme.textTheme.titleMedium),
+                    const SizedBox(width: 8),
+                    Badge(
+                      label: Text('${pendingQueue.length}'),
+                      backgroundColor: colorScheme.tertiary,
+                      textColor: colorScheme.onTertiary,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               sliver: SliverList.builder(
-                itemCount: runningJobs.length,
+                itemCount: pendingQueue.length,
                 itemBuilder: (context, index) {
-                  final job = runningJobs[index];
-                  return RunningJobCard(
-                    job: job,
-                    profileName: _profileName(job.profileId, profiles),
-                    syncMode: _profileSyncMode(job.profileId, profiles),
-                    onCancel: () {
-                      // Placeholder: cancel job
-                    },
+                  final entry = pendingQueue[index];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      radius: 14,
+                      backgroundColor: colorScheme.surfaceContainerHighest,
+                      child: Text(
+                        '${index + 1}',
+                        style: theme.textTheme.labelSmall,
+                      ),
+                    ),
+                    title: Text(
+                        _profileName(entry.profileId, profiles)),
+                    subtitle: Text(
+                      'Queued ${FormatUtils.formatRelativeTime(entry.enqueuedAt)}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      tooltip: 'Remove from queue',
+                      onPressed: () => ref
+                          .read(syncQueueProvider.notifier)
+                          .dequeue(entry.profileId),
+                    ),
                   );
                 },
               ),
             ),
+          ],
 
           // --- Divider ---
           const SliverToBoxAdapter(

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/sync_history_entry.dart';
 import '../../models/sync_job.dart';
 import '../../models/sync_profile.dart';
-import '../../providers/profiles_provider.dart';
 import '../../providers/sync_executor_provider.dart';
-import '../../providers/sync_history_provider.dart';
-import '../../providers/sync_jobs_provider.dart';
+import '../../providers/sync_queue_provider.dart';
 import '../../widgets/progress_bar.dart';
 import '../../widgets/status_indicator.dart';
 import '../../widgets/sync_mode_icon.dart';
@@ -21,19 +18,17 @@ class ProfileCard extends ConsumerWidget {
 
   final SyncProfile profile;
 
-  void _startSync(BuildContext context, WidgetRef ref, {bool dryRun = false}) async {
-    // Capture all notifier references before the async gap so they stay valid.
-    final executor = ref.read(syncExecutorProvider);
-    final jobsNotifier = ref.read(syncJobsProvider.notifier);
-    final profilesNotifier = ref.read(profilesProvider.notifier);
-    final historyNotifier = ref.read(syncHistoryProvider.notifier);
-    final profileId = profile.id;
-    final startTime = DateTime.now();
+  void _enqueueSync(WidgetRef ref) {
+    ref.read(syncQueueProvider.notifier).enqueue(profile.id);
+  }
 
-    final job = await executor.executeSync(
+  /// Dry runs bypass the queue — they are interactive previews.
+  void _startDryRun(BuildContext context, WidgetRef ref) async {
+    final executor = ref.read(syncExecutorProvider);
+
+    await executor.executeSync(
       profile,
-      dryRun: dryRun,
-      onProgress: (job) => jobsNotifier.updateJob(profileId, job),
+      dryRun: true,
       onDryRunComplete: (preview) {
         if (context.mounted) {
           Navigator.of(context).push(
@@ -42,7 +37,7 @@ class ProfileCard extends ConsumerWidget {
                 preview: preview,
                 onExecuteSync: () {
                   Navigator.of(context).pop();
-                  _startSync(context, ref);
+                  _enqueueSync(ref);
                 },
               ),
             ),
@@ -50,35 +45,6 @@ class ProfileCard extends ConsumerWidget {
         }
       },
     );
-
-    // After sync completes (skip for dry runs), update profile and history.
-    if (!dryRun) {
-      final isSuccess = job.status == SyncJobStatus.finished;
-
-      // Update profile's last sync status (await to avoid config file race).
-      await profilesNotifier.updateProfileStatus(
-        profileId,
-        status: isSuccess ? 'success' : 'error',
-        error: job.error,
-        lastSyncTime: DateTime.now(),
-      );
-
-      // Add history entry.
-      await historyNotifier.addEntry(
-        SyncHistoryEntry(
-          profileId: profileId,
-          timestamp: DateTime.now(),
-          status: isSuccess ? 'success' : 'error',
-          filesTransferred: job.filesTransferred,
-          bytesTransferred: job.bytesTransferred,
-          duration: DateTime.now().difference(startTime),
-          error: job.error,
-        ),
-      );
-
-      // Clear the active job.
-      jobsNotifier.removeJob(profileId);
-    }
   }
 
   void _editProfile(BuildContext context) {
@@ -91,9 +57,11 @@ class ProfileCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final jobs = ref.watch(syncJobsProvider);
-    final job = jobs[profile.id];
-    final isRunning = job != null && job.isRunning;
+    final queueState = ref.watch(syncQueueProvider);
+    final isRunning = queueState.isRunning(profile.id);
+    final isQueued = queueState.isQueued(profile.id);
+    final isActive = isRunning || isQueued;
+    final activeJob = isRunning ? queueState.activeJob : null;
     final status = StatusIndicator.fromProfile(profile);
     final theme = Theme.of(context);
 
@@ -157,11 +125,11 @@ class ProfileCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
-            // Progress bar when syncing (animated visibility)
+            // Progress / queued state (animated visibility)
             AnimatedSize(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOutCubic,
-              child: isRunning
+              child: isRunning && activeJob != null
                   ? Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Column(
@@ -169,12 +137,12 @@ class ProfileCard extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           SyncProgressBar(
-                            progress: job.progress,
-                            label: _buildProgressLabel(job),
+                            progress: activeJob.progress,
+                            label: _buildProgressLabel(activeJob),
                           ),
-                          if (job.transferring.isNotEmpty) ...[
+                          if (activeJob.transferring.isNotEmpty) ...[
                             const SizedBox(height: 6),
-                            ...job.transferring.take(3).map(
+                            ...activeJob.transferring.take(3).map(
                               (file) => Padding(
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Row(
@@ -224,7 +192,28 @@ class ProfileCard extends ConsumerWidget {
                         ],
                       ),
                     )
-                  : const SizedBox.shrink(),
+                  : isQueued
+                      ? Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.schedule,
+                                size: 14,
+                                color: theme.colorScheme.tertiary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Queued (#${queueState.queuePositionOf(profile.id)})',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.tertiary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
             ),
 
             // Last sync time
@@ -241,17 +230,17 @@ class ProfileCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: FilledButton(
-                    onPressed: isRunning
+                    onPressed: isActive
                         ? null
-                        : () => _startSync(context, ref),
+                        : () => _enqueueSync(ref),
                     child: const Text('Sync Now'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton(
-                  onPressed: isRunning
+                  onPressed: isActive
                       ? null
-                      : () => _startSync(context, ref, dryRun: true),
+                      : () => _startDryRun(context, ref),
                   child: const Text('Dry Run'),
                 ),
                 const SizedBox(width: 4),

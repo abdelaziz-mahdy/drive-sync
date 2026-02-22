@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/profiles_provider.dart';
+import '../../providers/sync_queue_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/skeleton_loader.dart';
 import '../profile_editor/profile_editor_screen.dart';
@@ -26,6 +27,25 @@ class DashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Dashboard'),
         actions: [
+          Consumer(
+            builder: (context, ref, _) {
+              final queueState = ref.watch(syncQueueProvider);
+              final profiles = ref.watch(profilesProvider).value ?? [];
+              final enabled = profiles.where((p) => p.enabled).toList();
+              final isBusy = !queueState.isIdle;
+              return IconButton(
+                icon: Icon(isBusy ? Icons.sync : Icons.sync),
+                tooltip: isBusy
+                    ? 'Syncing (${queueState.queue.length} queued)'
+                    : 'Sync All',
+                onPressed: enabled.isEmpty || isBusy
+                    ? null
+                    : () => ref
+                        .read(syncQueueProvider.notifier)
+                        .enqueueAll(enabled.map((p) => p.id).toList()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Add Profile',

@@ -1,4 +1,4 @@
-enum SyncJobStatus { running, finished, error }
+enum SyncJobStatus { queued, running, finished, error }
 
 class TransferringFile {
   final String name;
@@ -57,6 +57,7 @@ class SyncJob {
     this.transferring = const [],
   });
 
+  bool get isQueued => status == SyncJobStatus.queued;
   bool get isRunning => status == SyncJobStatus.running;
 
   double get progress => totalBytes > 0 ? bytesTransferred / totalBytes : 0;

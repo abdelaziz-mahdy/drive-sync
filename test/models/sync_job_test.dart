@@ -3,8 +3,8 @@ import 'package:drive_sync/models/sync_job.dart';
 
 void main() {
   group('SyncJobStatus', () {
-    test('has 3 values', () {
-      expect(SyncJobStatus.values.length, 3);
+    test('has 4 values', () {
+      expect(SyncJobStatus.values.length, 4);
     });
   });
 

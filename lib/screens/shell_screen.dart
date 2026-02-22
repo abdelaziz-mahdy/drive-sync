@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/profiles_provider.dart';
+import '../providers/sync_scheduler_provider.dart';
 import '../widgets/sidebar_layout.dart';
 import '../widgets/skeleton_loader.dart';
 import '../widgets/status_indicator.dart';
@@ -60,6 +61,8 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep the scheduler alive so timers fire while the app is open.
+    ref.watch(syncSchedulerProvider);
     final profilesAsync = ref.watch(profilesProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;

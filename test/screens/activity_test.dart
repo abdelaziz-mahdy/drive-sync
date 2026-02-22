@@ -8,7 +8,7 @@ import 'package:drive_sync/models/sync_profile.dart';
 import 'package:drive_sync/models/sync_mode.dart';
 import 'package:drive_sync/providers/profiles_provider.dart';
 import 'package:drive_sync/providers/sync_history_provider.dart';
-import 'package:drive_sync/providers/sync_jobs_provider.dart';
+import 'package:drive_sync/providers/sync_queue_provider.dart';
 import 'package:drive_sync/screens/activity/activity_screen.dart';
 
 void main() {
@@ -18,7 +18,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            syncJobsProvider.overrideWith(() => _EmptySyncJobsNotifier()),
+            syncQueueProvider.overrideWith(() => _IdleQueueNotifier()),
             syncHistoryProvider
                 .overrideWith(() => _EmptySyncHistoryNotifier()),
             profilesProvider.overrideWith(() => _EmptyProfilesNotifier()),
@@ -34,11 +34,12 @@ void main() {
       expect(find.text('No sync history yet'), findsOneWidget);
     });
 
-    testWidgets('shows running job card when job exists', (tester) async {
+    testWidgets('shows running job card when active job exists',
+        (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            syncJobsProvider.overrideWith(() => _RunningJobNotifier()),
+            syncQueueProvider.overrideWith(() => _RunningJobQueueNotifier()),
             syncHistoryProvider
                 .overrideWith(() => _EmptySyncHistoryNotifier()),
             profilesProvider
@@ -57,7 +58,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            syncJobsProvider.overrideWith(() => _EmptySyncJobsNotifier()),
+            syncQueueProvider.overrideWith(() => _IdleQueueNotifier()),
             syncHistoryProvider
                 .overrideWith(() => _WithHistoryNotifier()),
             profilesProvider
@@ -76,15 +77,15 @@ void main() {
 
 // --- Test notifiers ---
 
-class _EmptySyncJobsNotifier extends SyncJobsNotifier {
+class _IdleQueueNotifier extends SyncQueueNotifier {
   @override
-  Map<String, SyncJob> build() => {};
+  SyncQueueState build() => const SyncQueueState();
 }
 
-class _RunningJobNotifier extends SyncJobsNotifier {
+class _RunningJobQueueNotifier extends SyncQueueNotifier {
   @override
-  Map<String, SyncJob> build() => {
-        'profile-1': SyncJob(
+  SyncQueueState build() => SyncQueueState(
+        activeJob: SyncJob(
           jobId: 1,
           profileId: 'profile-1',
           status: SyncJobStatus.running,
@@ -94,7 +95,7 @@ class _RunningJobNotifier extends SyncJobsNotifier {
           speed: 1024 * 1024 * 2.3,
           startTime: DateTime.now(),
         ),
-      };
+      );
 }
 
 class _EmptySyncHistoryNotifier extends SyncHistoryNotifier {

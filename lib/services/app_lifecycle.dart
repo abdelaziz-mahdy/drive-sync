@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/rclone_provider.dart';
-import '../providers/sync_jobs_provider.dart';
+import '../providers/sync_queue_provider.dart';
 import 'tray_service.dart';
 
 /// Manages the app shutdown sequence and system lifecycle events.
@@ -48,8 +48,8 @@ class AppLifecycleManager extends WidgetsBindingObserver {
     bool force = false,
   }) async {
     // 1. Check for running sync jobs.
-    final syncJobs = _ref.read(syncJobsProvider.notifier);
-    if (!force && syncJobs.hasAnyRunningJobs && context != null) {
+    final queueState = _ref.read(syncQueueProvider);
+    if (!force && queueState.hasActiveJob && context != null) {
       final confirmed = await _showQuitConfirmation(context);
       if (!confirmed) return false;
     }
@@ -87,11 +87,10 @@ class AppLifecycleManager extends WidgetsBindingObserver {
   /// Shows a confirmation dialog when the user attempts to quit while syncs
   /// are running.
   Future<bool> _showQuitConfirmation(BuildContext context) async {
-    final runningCount = _ref
-        .read(syncJobsProvider)
-        .values
-        .where((j) => j.isRunning)
-        .length;
+    final queueState = _ref.read(syncQueueProvider);
+    final activeCount = queueState.hasActiveJob ? 1 : 0;
+    final queuedCount = queueState.queue.length;
+    final runningCount = activeCount + queuedCount;
 
     final result = await showDialog<bool>(
       context: context,
