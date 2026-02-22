@@ -171,21 +171,23 @@ class SyncQueueNotifier extends Notifier<SyncQueueState> {
 
       final isSuccess = job.status == SyncJobStatus.finished;
 
-      // Collect transferred file records (best-effort).
+      // Collect transferred file records only when files actually moved.
       List<TransferredFileRecord> transferredFiles = [];
-      try {
-        final transfers = await rcloneService.getCompletedTransfers(
-          group: 'job/${job.jobId}',
-        );
-        transferredFiles = transfers
-            .map((t) => TransferredFileRecord(
-                  fileName: (t['name'] as String?) ?? '',
-                  fileSize: (t['size'] as int?) ?? 0,
-                  completedAt: t['completed_at'] as String?,
-                ))
-            .toList();
-      } catch (_) {
-        // Best-effort: transfers may not be available.
+      if (job.filesTransferred > 0) {
+        try {
+          final transfers = await rcloneService.getCompletedTransfers(
+            group: 'job/${job.jobId}',
+          );
+          transferredFiles = transfers
+              .map((t) => TransferredFileRecord(
+                    fileName: (t['name'] as String?) ?? '',
+                    fileSize: (t['size'] as int?) ?? 0,
+                    completedAt: t['completed_at'] as String?,
+                  ))
+              .toList();
+        } catch (_) {
+          // Best-effort: transfers may not be available.
+        }
       }
 
       await profilesNotifier.updateProfileStatus(

@@ -8,6 +8,8 @@ class SyncHistoryNotifier extends AsyncNotifier<List<SyncHistoryEntry>> {
   @override
   Future<List<SyncHistoryEntry>> build() async {
     final dao = HistoryDao(ref.read(appDatabaseProvider));
+    // One-time cleanup of stale transferred file rows from before the fix.
+    await dao.cleanOrphanedTransferredFiles();
     final rows = await dao.loadAll();
     return rows.map(_rowToEntry).toList();
   }

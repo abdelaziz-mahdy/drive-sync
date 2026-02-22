@@ -28,12 +28,12 @@ void main() {
       expect(find.text('No sync history yet'), findsOneWidget);
     });
 
-    testWidgets('shows history entries', (tester) async {
+    testWidgets('shows history entries with actual changes', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             syncHistoryProvider
-                .overrideWith(() => _WithHistoryNotifier()),
+                .overrideWith(() => _WithChangesHistoryNotifier()),
             profilesProvider
                 .overrideWith(() => _SingleProfileNotifier()),
           ],
@@ -43,6 +43,52 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('No sync history yet'), findsNothing);
+      expect(find.text('Test Profile'), findsOneWidget);
+    });
+
+    testWidgets('shows no-change counter when only no-op syncs exist',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            syncHistoryProvider
+                .overrideWith(() => _NoChangeHistoryNotifier()),
+            profilesProvider
+                .overrideWith(() => _SingleProfileNotifier()),
+          ],
+          child: const MaterialApp(home: ActivityScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No changes recorded'), findsOneWidget);
+      expect(
+        find.text('2 syncs completed with no file changes.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('shows no-change banner alongside meaningful entries',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            syncHistoryProvider
+                .overrideWith(() => _MixedHistoryNotifier()),
+            profilesProvider
+                .overrideWith(() => _SingleProfileNotifier()),
+          ],
+          child: const MaterialApp(home: ActivityScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Should show the no-change banner
+      expect(
+        find.text('1 sync completed with no changes'),
+        findsOneWidget,
+      );
+      // Should show the meaningful entry
       expect(find.text('Test Profile'), findsOneWidget);
     });
   });
@@ -55,7 +101,7 @@ class _EmptySyncHistoryNotifier extends SyncHistoryNotifier {
   Future<List<SyncHistoryEntry>> build() async => [];
 }
 
-class _WithHistoryNotifier extends SyncHistoryNotifier {
+class _WithChangesHistoryNotifier extends SyncHistoryNotifier {
   @override
   Future<List<SyncHistoryEntry>> build() async => [
         SyncHistoryEntry(
@@ -65,6 +111,50 @@ class _WithHistoryNotifier extends SyncHistoryNotifier {
           filesTransferred: 10,
           bytesTransferred: 1024 * 1024,
           duration: const Duration(seconds: 45),
+        ),
+      ];
+}
+
+class _NoChangeHistoryNotifier extends SyncHistoryNotifier {
+  @override
+  Future<List<SyncHistoryEntry>> build() async => [
+        SyncHistoryEntry(
+          profileId: 'profile-1',
+          timestamp: DateTime.now().subtract(const Duration(hours: 1)),
+          status: 'success',
+          filesTransferred: 0,
+          bytesTransferred: 0,
+          duration: const Duration(seconds: 1),
+        ),
+        SyncHistoryEntry(
+          profileId: 'profile-1',
+          timestamp: DateTime.now().subtract(const Duration(hours: 2)),
+          status: 'success',
+          filesTransferred: 0,
+          bytesTransferred: 0,
+          duration: const Duration(seconds: 1),
+        ),
+      ];
+}
+
+class _MixedHistoryNotifier extends SyncHistoryNotifier {
+  @override
+  Future<List<SyncHistoryEntry>> build() async => [
+        SyncHistoryEntry(
+          profileId: 'profile-1',
+          timestamp: DateTime.now().subtract(const Duration(hours: 1)),
+          status: 'success',
+          filesTransferred: 5,
+          bytesTransferred: 512 * 1024,
+          duration: const Duration(seconds: 30),
+        ),
+        SyncHistoryEntry(
+          profileId: 'profile-1',
+          timestamp: DateTime.now().subtract(const Duration(hours: 2)),
+          status: 'success',
+          filesTransferred: 0,
+          bytesTransferred: 0,
+          duration: const Duration(seconds: 1),
         ),
       ];
 }

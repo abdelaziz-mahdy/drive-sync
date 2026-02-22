@@ -106,6 +106,17 @@ class HistoryDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
+  /// Remove orphaned transferred file rows for history entries that report
+  /// zero files transferred (stale data from before the stats-reset fix).
+  Future<void> cleanOrphanedTransferredFiles() async {
+    final zeroFileEntries = selectOnly(syncHistoryEntries)
+      ..addColumns([syncHistoryEntries.id])
+      ..where(syncHistoryEntries.filesTransferred.equals(0));
+    await (delete(transferredFiles)
+          ..where((t) => t.historyId.isInQuery(zeroFileEntries)))
+        .go();
+  }
+
   Future<void> _trimHistory() async {
     final count = await syncHistoryEntries.count().getSingle();
     if (count <= maxEntries) return;
