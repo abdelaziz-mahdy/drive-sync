@@ -4,6 +4,9 @@ part 'sync_history_entry.g.dart';
 
 @JsonSerializable()
 class SyncHistoryEntry {
+  /// Database row ID. Null for entries not yet persisted.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final int? id;
   final String profileId;
   final DateTime timestamp;
   final String status;
@@ -14,6 +17,7 @@ class SyncHistoryEntry {
   final String? error;
 
   const SyncHistoryEntry({
+    this.id,
     required this.profileId,
     required this.timestamp,
     required this.status,

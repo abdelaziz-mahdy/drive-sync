@@ -33,6 +33,7 @@ class SyncHistoryNotifier extends AsyncNotifier<List<SyncHistoryEntry>> {
 
   static SyncHistoryEntry _rowToEntry(SyncHistoryEntryRow row) {
     return SyncHistoryEntry(
+      id: row.id,
       profileId: row.profileId,
       timestamp: row.timestamp,
       status: row.status,
