@@ -22,7 +22,7 @@ void main() {
         name: 'Test Profile',
         remoteName: 'gdrive',
         cloudFolder: 'Documents',
-        localPath: '/home/user/docs',
+        localPaths: ['/home/user/docs'],
         includeTypes: [],
         excludeTypes: [],
         useIncludeMode: false,

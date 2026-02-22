@@ -129,7 +129,7 @@ class _SingleProfileNotifier extends ProfilesNotifier {
           name: 'Test Profile',
           remoteName: 'gdrive',
           cloudFolder: '/sync',
-          localPath: '/home/user/sync',
+          localPaths: ['/home/user/sync'],
           includeTypes: [],
           excludeTypes: [],
           useIncludeMode: true,

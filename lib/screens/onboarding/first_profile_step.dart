@@ -71,7 +71,7 @@ class _FirstProfileStepState extends ConsumerState<FirstProfileStep> {
         name: _nameController.text.trim(),
         remoteName: _selectedRemote!,
         cloudFolder: _cloudFolderController.text.trim(),
-        localPath: _localPathController.text.trim(),
+        localPaths: [_localPathController.text.trim()],
         includeTypes: const [],
         excludeTypes: const [],
         useIncludeMode: false,

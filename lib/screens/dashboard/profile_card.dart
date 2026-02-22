@@ -101,7 +101,9 @@ class ProfileCard extends ConsumerWidget {
             // Paths
             _PathRow(
               icon: Icons.folder_outlined,
-              path: profile.localPath,
+              path: profile.localPaths.length == 1
+                  ? profile.localPath
+                  : '${profile.localPath} (+${profile.localPaths.length - 1} more)',
             ),
             const SizedBox(height: 4),
             _PathRow(

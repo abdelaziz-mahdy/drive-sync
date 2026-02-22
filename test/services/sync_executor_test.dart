@@ -42,7 +42,7 @@ void main() {
         name: 'Test Profile',
         remoteName: 'gdrive',
         cloudFolder: 'Documents',
-        localPath: '/home/user/docs',
+        localPaths: ['/home/user/docs'],
         includeTypes: const [],
         excludeTypes: const [],
         useIncludeMode: false,
@@ -126,14 +126,14 @@ void main() {
           'transferred': completedTransfers ??
               [
                 {
-                  'Name': 'file1.txt',
-                  'Size': 100,
-                  'ModTime': '2025-01-01T00:00:00Z'
+                  'name': 'file1.txt',
+                  'size': 100,
+                  'completed_at': '2025-01-01T00:00:00Z'
                 },
                 {
-                  'Name': 'file2.txt',
-                  'Size': 200,
-                  'ModTime': '2025-01-01T00:00:00Z'
+                  'name': 'file2.txt',
+                  'size': 200,
+                  'completed_at': '2025-01-01T00:00:00Z'
                 },
               ],
         }),

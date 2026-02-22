@@ -33,23 +33,69 @@ class SyncExecutor {
 
   /// Execute a sync (or dry-run) for the given [profile].
   ///
-  /// 1. Optionally generates gitignore filter rules.
-  /// 2. Starts the rclone sync job.
-  /// 3. Polls for progress, invoking [onProgress] with each update.
-  /// 4. For dry runs, collects completed transfers and invokes [onDryRunComplete].
-  /// 5. Returns the final [SyncJob].
+  /// When the profile has multiple local paths, runs a sync for each path
+  /// sequentially. Progress callbacks aggregate across all paths.
   Future<SyncJob> executeSync(
     SyncProfile profile, {
     bool dryRun = false,
     void Function(SyncJob)? onProgress,
     void Function(SyncPreview)? onDryRunComplete,
   }) async {
+    talker.info(
+      'Starting ${dryRun ? "dry run" : "sync"} for profile "${profile.name}" '
+      '(${profile.localPaths.length} path(s))',
+    );
+
+    SyncJob? lastJob;
+    final allDryRunTransfers = <Map<String, dynamic>>[];
+
+    for (final localPath in profile.localPaths) {
+      talker.info('Syncing path: $localPath');
+      lastJob = await _executeSyncForPath(
+        profile,
+        localPath: localPath,
+        dryRun: dryRun,
+        onProgress: onProgress,
+        onDryRunTransfers: dryRun
+            ? (transfers) => allDryRunTransfers.addAll(transfers)
+            : null,
+      );
+
+      // Stop processing remaining paths if this one errored.
+      if (lastJob.status == SyncJobStatus.error) break;
+    }
+
+    // Deliver aggregated dry-run preview.
+    if (dryRun && lastJob != null && lastJob.status != SyncJobStatus.error) {
+      talker.debug(
+        'Dry run completed with ${allDryRunTransfers.length} total transfers',
+      );
+      if (allDryRunTransfers.isNotEmpty) {
+        talker.debug('Sample transfer data: ${allDryRunTransfers.first}');
+      }
+      final preview = _buildPreview(profile.id, allDryRunTransfers);
+      onDryRunComplete?.call(preview);
+    }
+    talker.info(
+      'Sync finished with status: ${lastJob?.status.name ?? "unknown"}',
+    );
+
+    return lastJob!;
+  }
+
+  /// Runs a single sync operation for one local path.
+  Future<SyncJob> _executeSyncForPath(
+    SyncProfile profile, {
+    required String localPath,
+    required bool dryRun,
+    void Function(SyncJob)? onProgress,
+    void Function(List<Map<String, dynamic>>)? onDryRunTransfers,
+  }) async {
     // Step 1: Generate gitignore filter rules if needed.
-    talker.info('Starting ${dryRun ? "dry run" : "sync"} for profile "${profile.name}"');
     List<String>? gitignoreRules;
     if (profile.respectGitignore) {
       gitignoreRules =
-          await gitignoreService.generateRcloneFilters(profile.localPath);
+          await gitignoreService.generateRcloneFilters(localPath);
       talker.debug('Generated ${gitignoreRules.length} gitignore filter rules');
     }
 
@@ -58,6 +104,7 @@ class SyncExecutor {
       profile,
       gitignoreRules: gitignoreRules,
       dryRun: dryRun,
+      localPathOverride: localPath,
     );
     talker.info('Job $jobId started');
 
@@ -136,18 +183,12 @@ class SyncExecutor {
       }
     }
 
-    // Step 5: For dry runs, build and deliver the preview.
+    // Collect dry run transfers.
     if (dryRun && job.status != SyncJobStatus.error) {
       final transfers =
           await rcloneService.getCompletedTransfers(group: 'job/$jobId');
-      talker.debug('Dry run completed with ${transfers.length} transfers');
-      if (transfers.isNotEmpty) {
-        talker.debug('Sample transfer data: ${transfers.first}');
-      }
-      final preview = _buildPreview(profile.id, transfers);
-      onDryRunComplete?.call(preview);
+      onDryRunTransfers?.call(transfers);
     }
-    talker.info('Job $jobId finished with status: ${job.status.name}');
 
     return job;
   }

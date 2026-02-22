@@ -12,7 +12,7 @@ SyncProfile _makeProfile({String? lastSyncStatus}) {
     name: 'Test Profile',
     remoteName: 'gdrive',
     cloudFolder: '/backup',
-    localPath: '/home/user/docs',
+    localPaths: ['/home/user/docs'],
     includeTypes: const [],
     excludeTypes: const [],
     useIncludeMode: false,

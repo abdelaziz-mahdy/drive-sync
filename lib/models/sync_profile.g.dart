@@ -11,7 +11,7 @@ SyncProfile _$SyncProfileFromJson(Map<String, dynamic> json) => SyncProfile(
   name: json['name'] as String,
   remoteName: json['remoteName'] as String,
   cloudFolder: json['cloudFolder'] as String,
-  localPath: json['localPath'] as String,
+  localPaths: SyncProfile._localPathsFromJson(json['localPaths'] ?? json['localPath']),
   includeTypes: (json['includeTypes'] as List<dynamic>)
       .map((e) => e as String)
       .toList(),
@@ -43,7 +43,7 @@ Map<String, dynamic> _$SyncProfileToJson(SyncProfile instance) =>
       'name': instance.name,
       'remoteName': instance.remoteName,
       'cloudFolder': instance.cloudFolder,
-      'localPath': instance.localPath,
+      'localPaths': SyncProfile._localPathsToJson(instance.localPaths),
       'includeTypes': instance.includeTypes,
       'excludeTypes': instance.excludeTypes,
       'useIncludeMode': instance.useIncludeMode,

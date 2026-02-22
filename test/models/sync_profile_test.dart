@@ -9,7 +9,7 @@ void main() {
       name: 'Test Profile',
       remoteName: 'gdrive',
       cloudFolder: 'Documents',
-      localPath: '/home/user/docs',
+      localPaths: ['/home/user/docs'],
       includeTypes: ['*.dart', '*.md'],
       excludeTypes: [],
       useIncludeMode: true,
@@ -97,7 +97,7 @@ void main() {
           name: 'n',
           remoteName: 'r',
           cloudFolder: 'c',
-          localPath: '/l',
+          localPaths: ['/l'],
           includeTypes: [],
           excludeTypes: ['*.log'],
           useIncludeMode: false,
@@ -155,7 +155,7 @@ void main() {
           name: 'n',
           remoteName: 'r',
           cloudFolder: 'c',
-          localPath: '/l',
+          localPaths: ['/l'],
           includeTypes: [],
           excludeTypes: [],
           useIncludeMode: true,
@@ -223,6 +223,35 @@ void main() {
         final p2 = SyncProfile.fromJson(json);
         expect(p2.lastSyncTime?.millisecondsSinceEpoch,
             now.millisecondsSinceEpoch);
+      });
+
+      test('migrates legacy localPath string to localPaths list', () {
+        final json = {
+          'id': 'legacy-id',
+          'name': 'Legacy',
+          'remoteName': 'gdrive',
+          'cloudFolder': 'docs',
+          'localPaths': '/old/path',
+          'includeTypes': <String>[],
+          'excludeTypes': <String>[],
+          'useIncludeMode': false,
+          'syncMode': 'backup',
+          'scheduleMinutes': 0,
+          'enabled': true,
+          'respectGitignore': false,
+          'excludeGitDirs': false,
+          'customExcludes': <String>[],
+        };
+        final p = SyncProfile.fromJson(json);
+        expect(p.localPaths, ['/old/path']);
+        expect(p.localPath, '/old/path');
+      });
+
+      test('serializes localPaths as list', () {
+        final p = createProfile();
+        final json = p.toJson();
+        expect(json['localPaths'], isA<List>());
+        expect(json['localPaths'], ['/home/user/docs']);
       });
     });
   });

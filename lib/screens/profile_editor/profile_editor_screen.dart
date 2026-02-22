@@ -36,7 +36,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _cloudFolderController = TextEditingController();
-  final _localPathController = TextEditingController();
+  late List<String> _localPaths;
 
   late SyncMode _syncMode;
   late String? _remoteName;
@@ -68,7 +68,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     final p = widget.profile;
     _nameController.text = p?.name ?? '';
     _cloudFolderController.text = p?.cloudFolder ?? '';
-    _localPathController.text = p?.localPath ?? '';
+    _localPaths = List<String>.from(p?.localPaths ?? ['']);
     _syncMode = p?.syncMode ?? SyncMode.backup;
     _remoteName = p?.remoteName;
     _useIncludeMode = p?.useIncludeMode ?? true;
@@ -88,7 +88,6 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   void dispose() {
     _nameController.dispose();
     _cloudFolderController.dispose();
-    _localPathController.dispose();
     super.dispose();
   }
 
@@ -103,7 +102,10 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         name: _nameController.text.trim(),
         remoteName: _remoteName ?? '',
         cloudFolder: _cloudFolderController.text.trim(),
-        localPath: _localPathController.text.trim(),
+        localPaths: _localPaths
+            .map((p) => p.trim())
+            .where((p) => p.isNotEmpty)
+            .toList(),
         includeTypes: _includeTypes,
         excludeTypes: _excludeTypes,
         useIncludeMode: _useIncludeMode,
@@ -178,10 +180,57 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     }
   }
 
-  Future<void> _browseLocalFolder() async {
+  Future<void> _browseLocalFolder(int index) async {
     final result = await FilePicker.platform.getDirectoryPath();
     if (result != null) {
-      setState(() => _localPathController.text = result);
+      setState(() => _localPaths[index] = result);
+    }
+  }
+
+  List<Widget> _buildLocalPathFields() {
+    return List.generate(_localPaths.length, (i) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: TextFormField(
+          initialValue: _localPaths[i],
+          decoration: InputDecoration(
+            labelText: _localPaths.length == 1
+                ? 'Local Folder Path'
+                : 'Local Folder Path ${i + 1}',
+            hintText: 'e.g., /home/user/sync',
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.folder_open),
+                  onPressed: () => _browseLocalFolder(i),
+                  tooltip: 'Browse local folders',
+                ),
+                if (_localPaths.length > 1)
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline, size: 20),
+                    onPressed: () => _removeLocalPath(i),
+                    tooltip: 'Remove this path',
+                  ),
+              ],
+            ),
+          ),
+          onChanged: (v) => _localPaths[i] = v,
+          validator: (v) => (v == null || v.trim().isEmpty)
+              ? 'Local path is required'
+              : null,
+        ),
+      );
+    });
+  }
+
+  void _addLocalPath() {
+    setState(() => _localPaths.add(''));
+  }
+
+  void _removeLocalPath(int index) {
+    if (_localPaths.length > 1) {
+      setState(() => _localPaths.removeAt(index));
     }
   }
 
@@ -284,21 +333,16 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             ),
             const SizedBox(height: 12),
 
-            // Local folder path
-            TextFormField(
-              controller: _localPathController,
-              decoration: InputDecoration(
-                labelText: 'Local Folder Path',
-                hintText: 'e.g., /home/user/sync',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.folder_open),
-                  onPressed: _browseLocalFolder,
-                  tooltip: 'Browse local folders',
-                ),
+            // Local folder paths
+            ..._buildLocalPathFields(),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _addLocalPath,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Add another local path'),
               ),
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Local path is required'
-                  : null,
             ),
             const SizedBox(height: 24),
 

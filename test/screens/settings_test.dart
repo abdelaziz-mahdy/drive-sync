@@ -26,6 +26,7 @@ void main() {
 
       expect(find.text('General'), findsOneWidget);
       expect(find.text('Rclone'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('About'), 100);
       expect(find.text('About'), findsOneWidget);
     });
 
@@ -98,6 +99,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.scrollUntilVisible(find.text('0.1.0'), 100);
       expect(find.text('0.1.0'), findsOneWidget);
     });
   });

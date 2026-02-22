@@ -135,12 +135,14 @@ class RcloneService {
     SyncProfile profile, {
     List<String>? gitignoreRules,
     bool dryRun = false,
+    String? localPathOverride,
   }) async {
     final response = await _dio.post(
       profile.syncMode.rcEndpoint,
       data: profile.toRcApiData(
         gitignoreRules: gitignoreRules,
         dryRun: dryRun,
+        localPathOverride: localPathOverride,
       ),
     );
     final data = response.data as Map<String, dynamic>;

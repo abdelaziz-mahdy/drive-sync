@@ -9,7 +9,8 @@ class SyncProfile {
   final String name;
   final String remoteName;
   final String cloudFolder;
-  final String localPath;
+  @JsonKey(fromJson: _localPathsFromJson, toJson: _localPathsToJson)
+  final List<String> localPaths;
   final List<String> includeTypes;
   final List<String> excludeTypes;
   final bool useIncludeMode;
@@ -32,7 +33,7 @@ class SyncProfile {
     required this.name,
     required this.remoteName,
     required this.cloudFolder,
-    required this.localPath,
+    required this.localPaths,
     required this.includeTypes,
     required this.excludeTypes,
     required this.useIncludeMode,
@@ -52,12 +53,29 @@ class SyncProfile {
 
   static String _syncModeToJson(SyncMode mode) => mode.toJson();
 
+  /// Reads localPaths from JSON, supporting both legacy `localPath` (String)
+  /// and current `localPaths` (List<String>) formats.
+  static List<String> _localPathsFromJson(dynamic json) {
+    if (json is List) {
+      return json.cast<String>();
+    }
+    if (json is String) {
+      return [json];
+    }
+    return [];
+  }
+
+  static List<String> _localPathsToJson(List<String> paths) => paths;
+
+  /// Convenience getter for the primary local path.
+  String get localPath => localPaths.isNotEmpty ? localPaths.first : '';
+
   String get remoteFs => '$remoteName:$cloudFolder';
 
-  String get sourceFs {
+  String sourceFsFor(String path) {
     switch (syncMode) {
       case SyncMode.backup:
-        return localPath;
+        return path;
       case SyncMode.mirror:
       case SyncMode.download:
       case SyncMode.bisync:
@@ -65,21 +83,26 @@ class SyncProfile {
     }
   }
 
-  String get destinationFs {
+  String destinationFsFor(String path) {
     switch (syncMode) {
       case SyncMode.backup:
         return remoteFs;
       case SyncMode.mirror:
       case SyncMode.download:
       case SyncMode.bisync:
-        return localPath;
+        return path;
     }
   }
+
+  String get sourceFs => sourceFsFor(localPath);
+  String get destinationFs => destinationFsFor(localPath);
 
   Map<String, dynamic> toRcApiData({
     List<String>? gitignoreRules,
     bool dryRun = false,
+    String? localPathOverride,
   }) {
+    final path = localPathOverride ?? localPath;
     final data = <String, dynamic>{
       '_async': true,
       '_filter': buildFilterPayload(gitignoreRules: gitignoreRules),
@@ -87,11 +110,11 @@ class SyncProfile {
     };
 
     if (syncMode == SyncMode.bisync) {
-      data['path1'] = sourceFs;
-      data['path2'] = destinationFs;
+      data['path1'] = sourceFsFor(path);
+      data['path2'] = destinationFsFor(path);
     } else {
-      data['srcFs'] = sourceFs;
-      data['dstFs'] = destinationFs;
+      data['srcFs'] = sourceFsFor(path);
+      data['dstFs'] = destinationFsFor(path);
     }
 
     return data;
@@ -150,7 +173,7 @@ class SyncProfile {
     String? name,
     String? remoteName,
     String? cloudFolder,
-    String? localPath,
+    List<String>? localPaths,
     List<String>? includeTypes,
     List<String>? excludeTypes,
     bool? useIncludeMode,
@@ -172,7 +195,7 @@ class SyncProfile {
       name: name ?? this.name,
       remoteName: remoteName ?? this.remoteName,
       cloudFolder: cloudFolder ?? this.cloudFolder,
-      localPath: localPath ?? this.localPath,
+      localPaths: localPaths ?? this.localPaths,
       includeTypes: includeTypes ?? this.includeTypes,
       excludeTypes: excludeTypes ?? this.excludeTypes,
       useIncludeMode: useIncludeMode ?? this.useIncludeMode,

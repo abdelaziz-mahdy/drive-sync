@@ -32,7 +32,7 @@ void main() {
         name: name ?? 'Test Profile',
         remoteName: 'gdrive',
         cloudFolder: 'Documents',
-        localPath: '/home/user/docs',
+        localPaths: ['/home/user/docs'],
         includeTypes: const [],
         excludeTypes: const [],
         useIncludeMode: false,

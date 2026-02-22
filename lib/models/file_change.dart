@@ -13,16 +13,26 @@ class FileChange {
     required this.action,
   });
 
+  /// Creates a [FileChange] from rclone's `/core/transferred` response.
+  ///
+  /// Rclone uses lowercase keys: `name`, `size`, `completed_at`.
   factory FileChange.fromRcloneTransfer(
     Map<String, dynamic> data,
     FileChangeAction action,
   ) {
+    // Support both lowercase (actual rclone) and uppercase (legacy) keys.
+    final name = (data['name'] as String?) ??
+        (data['Name'] as String?) ??
+        (data['Remote'] as String?) ??
+        '';
+    final size = (data['size'] as int?) ?? (data['Size'] as int?) ?? 0;
+    final modTimeStr = (data['completed_at'] as String?) ??
+        (data['ModTime'] as String?);
+
     return FileChange(
-      path: (data['Name'] as String?) ?? data['Remote'] as String? ?? '',
-      size: (data['Size'] as int?) ?? 0,
-      modTime: data['ModTime'] != null
-          ? DateTime.tryParse(data['ModTime'] as String)
-          : null,
+      path: name,
+      size: size,
+      modTime: modTimeStr != null ? DateTime.tryParse(modTimeStr) : null,
       action: action,
     );
   }
