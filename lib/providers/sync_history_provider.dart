@@ -12,7 +12,10 @@ class SyncHistoryNotifier extends AsyncNotifier<List<SyncHistoryEntry>> {
     return rows.map(_rowToEntry).toList();
   }
 
-  Future<void> addEntry(SyncHistoryEntry entry) async {
+  Future<void> addEntry(
+    SyncHistoryEntry entry, {
+    List<TransferredFileRecord> files = const [],
+  }) async {
     final dao = HistoryDao(ref.read(appDatabaseProvider));
     await dao.addEntry(
       profileId: entry.profileId,
@@ -22,6 +25,7 @@ class SyncHistoryNotifier extends AsyncNotifier<List<SyncHistoryEntry>> {
       bytesTransferred: entry.bytesTransferred,
       durationMs: entry.duration.inMilliseconds,
       error: entry.error,
+      files: files,
     );
     final rows = await dao.loadAll();
     state = AsyncData(rows.map(_rowToEntry).toList());

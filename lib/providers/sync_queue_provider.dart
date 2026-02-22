@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../database/daos/history_dao.dart';
 import '../models/sync_history_entry.dart';
 import '../models/sync_job.dart';
 import '../models/sync_queue_entry.dart';
 import 'profiles_provider.dart';
+import 'rclone_provider.dart';
 import 'sync_executor_provider.dart';
 import 'sync_history_provider.dart';
 import 'talker_provider.dart';
@@ -161,6 +163,24 @@ class SyncQueueNotifier extends Notifier<SyncQueueState> {
 
       final isSuccess = job.status == SyncJobStatus.finished;
 
+      // Collect transferred file records (best-effort).
+      List<TransferredFileRecord> transferredFiles = [];
+      try {
+        final rcloneService = ref.read(rcloneServiceProvider);
+        final transfers = await rcloneService.getCompletedTransfers(
+          group: 'job/${job.jobId}',
+        );
+        transferredFiles = transfers
+            .map((t) => TransferredFileRecord(
+                  fileName: (t['name'] as String?) ?? '',
+                  fileSize: (t['size'] as int?) ?? 0,
+                  completedAt: t['completed_at'] as String?,
+                ))
+            .toList();
+      } catch (_) {
+        // Best-effort: transfers may not be available.
+      }
+
       await profilesNotifier.updateProfileStatus(
         profileId,
         status: isSuccess ? 'success' : 'error',
@@ -178,6 +198,7 @@ class SyncQueueNotifier extends Notifier<SyncQueueState> {
           duration: DateTime.now().difference(startTime),
           error: job.error,
         ),
+        files: transferredFiles,
       );
     } catch (e, stack) {
       talker.handle(e, stack, 'SyncQueue: error syncing profile $profileId');
