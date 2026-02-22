@@ -7,7 +7,9 @@ class SyncJob {
   final int bytesTransferred;
   final int totalBytes;
   final int filesTransferred;
+  final int totalFiles;
   final double speed;
+  final double? eta;
   final String? error;
   final DateTime startTime;
   final DateTime? endTime;
@@ -19,7 +21,9 @@ class SyncJob {
     required this.bytesTransferred,
     required this.totalBytes,
     required this.filesTransferred,
+    this.totalFiles = 0,
     required this.speed,
+    this.eta,
     this.error,
     required this.startTime,
     this.endTime,
@@ -72,7 +76,9 @@ class SyncJob {
     int? bytesTransferred,
     int? totalBytes,
     int? filesTransferred,
+    int? totalFiles,
     double? speed,
+    double? eta,
     String? error,
     DateTime? startTime,
     DateTime? endTime,
@@ -84,7 +90,9 @@ class SyncJob {
       bytesTransferred: bytesTransferred ?? this.bytesTransferred,
       totalBytes: totalBytes ?? this.totalBytes,
       filesTransferred: filesTransferred ?? this.filesTransferred,
+      totalFiles: totalFiles ?? this.totalFiles,
       speed: speed ?? this.speed,
+      eta: eta ?? this.eta,
       error: error ?? this.error,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,

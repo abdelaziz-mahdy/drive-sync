@@ -165,8 +165,7 @@ class ProfileCard extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: SyncProgressBar(
                         progress: job.progress,
-                        label:
-                            '${(job.progress * 100).toStringAsFixed(0)}% - ${_formatSpeed(job.speed)}',
+                        label: _buildProgressLabel(job),
                       ),
                     )
                   : const SizedBox.shrink(),
@@ -225,6 +224,40 @@ class ProfileCard extends ConsumerWidget {
     if (diff.inDays < 7) return '${diff.inDays} days ago';
 
     return '${lastSync.day}/${lastSync.month}/${lastSync.year}';
+  }
+
+  String _buildProgressLabel(SyncJob job) {
+    final parts = <String>[];
+
+    // Percentage
+    parts.add('${(job.progress * 100).toStringAsFixed(0)}%');
+
+    // File count
+    if (job.totalFiles > 0) {
+      parts.add('${job.filesTransferred}/${job.totalFiles} files');
+    } else if (job.filesTransferred > 0) {
+      parts.add('${job.filesTransferred} files');
+    }
+
+    // Speed
+    if (job.speed > 0) {
+      parts.add(_formatSpeed(job.speed));
+    }
+
+    // ETA
+    if (job.eta != null && job.eta! > 0 && !job.eta!.isInfinite) {
+      parts.add('${_formatEta(job.eta!.toInt())} left');
+    }
+
+    return parts.join(' - ');
+  }
+
+  String _formatEta(int seconds) {
+    if (seconds < 60) return '${seconds}s';
+    if (seconds < 3600) return '${seconds ~/ 60}m ${seconds % 60}s';
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    return '${h}h ${m}m';
   }
 
   String _formatSpeed(double bytesPerSecond) {

@@ -162,7 +162,10 @@ class SyncExecutor {
           totalBytes: (stats['totalBytes'] as int?) ?? job.totalBytes,
           filesTransferred:
               (stats['transfers'] as int?) ?? job.filesTransferred,
+          totalFiles:
+              (stats['totalTransfers'] as int?) ?? job.totalFiles,
           speed: (stats['speed'] as num?)?.toDouble() ?? job.speed,
+          eta: (stats['eta'] as num?)?.toDouble(),
           error: userError,
           endTime: finished ? DateTime.now() : null,
         );
