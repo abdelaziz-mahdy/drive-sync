@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
+import 'package:talker/talker.dart';
 
 import 'package:drive_sync/models/sync_job.dart';
 import 'package:drive_sync/models/sync_mode.dart';
@@ -63,6 +64,7 @@ void main() {
     executor = SyncExecutor(
       rcloneService: rcloneService,
       gitignoreService: gitignoreService,
+      talker: Talker(),
       pollInterval: Duration.zero, // no delay in tests
     );
   });

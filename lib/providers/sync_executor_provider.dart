@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/gitignore_service.dart';
 import '../services/sync_executor.dart';
 import 'rclone_provider.dart';
+import 'talker_provider.dart';
 
 final gitignoreServiceProvider = Provider<GitignoreService>((ref) {
   return GitignoreService();
@@ -13,5 +14,6 @@ final syncExecutorProvider = Provider<SyncExecutor>((ref) {
   return SyncExecutor(
     rcloneService: rcloneService,
     gitignoreService: ref.watch(gitignoreServiceProvider),
+    talker: ref.watch(talkerProvider),
   );
 });

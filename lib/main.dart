@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'app.dart';
 import 'providers/app_config_provider.dart';
 import 'providers/rclone_provider.dart';
+import 'providers/talker_provider.dart';
 import 'services/config_store.dart';
 import 'services/rclone_daemon_manager.dart';
 import 'services/rclone_service.dart';
@@ -29,8 +30,15 @@ Future<void> main() async {
   }
 
   // 4. Create the daemon manager and rclone service.
-  final daemonManager = RcloneDaemonManager(appSupportDir: dirPath);
-  final rcloneService = RcloneService(user: creds.user, pass: creds.pass);
+  final daemonManager = RcloneDaemonManager(
+    appSupportDir: dirPath,
+    talker: talker,
+  );
+  final rcloneService = RcloneService(
+    user: creds.user,
+    pass: creds.pass,
+    talker: talker,
+  );
 
   // 5. Run the app with provider overrides so the previously-throwing
   //    providers are now backed by real instances.

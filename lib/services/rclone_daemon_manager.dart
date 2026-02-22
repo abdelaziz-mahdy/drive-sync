@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:talker/talker.dart';
+
 /// Manages the rclone rcd process lifecycle - starting, stopping, and
 /// cleaning up stale daemon processes.
 class RcloneDaemonManager {
   final String appSupportDir;
+  final Talker? _talker;
   Process? _process;
 
   /// Collects stdout/stderr from the daemon process for diagnostics.
@@ -13,13 +16,15 @@ class RcloneDaemonManager {
   /// Maximum number of log lines to retain.
   static const int _maxLogLines = 500;
 
-  RcloneDaemonManager({required this.appSupportDir});
+  RcloneDaemonManager({required this.appSupportDir, Talker? talker})
+      : _talker = talker;
 
   void _addLog(String line) {
     processLogs.add(line);
     if (processLogs.length > _maxLogLines) {
       processLogs.removeAt(0);
     }
+    _talker?.debug(line);
   }
 
   /// Path to the PID file used to track the daemon process.

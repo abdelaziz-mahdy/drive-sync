@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:talker/talker.dart';
+import 'package:talker_dio_logger/talker_dio_logger.dart';
 
 import '../models/sync_profile.dart';
 
@@ -13,6 +15,7 @@ class RcloneService {
     required String user,
     required String pass,
     int port = 5572,
+    Talker? talker,
   }) : _dio = Dio(
           BaseOptions(
             baseUrl: 'http://localhost:$port',
@@ -22,7 +25,21 @@ class RcloneService {
               'Content-Type': 'application/json',
             },
           ),
-        );
+        ) {
+    if (talker != null) {
+      _dio.interceptors.add(
+        TalkerDioLogger(
+          talker: talker,
+          settings: const TalkerDioLoggerSettings(
+            printRequestData: true,
+            printResponseData: true,
+            printRequestHeaders: false,
+            printResponseHeaders: false,
+          ),
+        ),
+      );
+    }
+  }
 
   /// For testing with a pre-configured Dio instance.
   RcloneService.withDio(this._dio);

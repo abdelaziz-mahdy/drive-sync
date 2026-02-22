@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:talker/talker.dart';
 
 import '../models/file_change.dart';
 import '../models/sync_job.dart';
@@ -17,6 +18,7 @@ class SyncExecutor {
   final RcloneService rcloneService;
   final GitignoreService gitignoreService;
   final ErrorClassifier errorClassifier;
+  final Talker talker;
 
   /// Poll interval for checking job status during sync.
   final Duration pollInterval;
@@ -24,6 +26,7 @@ class SyncExecutor {
   SyncExecutor({
     required this.rcloneService,
     required this.gitignoreService,
+    required this.talker,
     this.errorClassifier = const ErrorClassifier(),
     this.pollInterval = const Duration(seconds: 2),
   });
@@ -42,10 +45,12 @@ class SyncExecutor {
     void Function(SyncPreview)? onDryRunComplete,
   }) async {
     // Step 1: Generate gitignore filter rules if needed.
+    talker.info('Starting ${dryRun ? "dry run" : "sync"} for profile "${profile.name}"');
     List<String>? gitignoreRules;
     if (profile.respectGitignore) {
       gitignoreRules =
           await gitignoreService.generateRcloneFilters(profile.localPath);
+      talker.debug('Generated ${gitignoreRules.length} gitignore filter rules');
     }
 
     // Step 2: Start the sync job.
@@ -54,6 +59,7 @@ class SyncExecutor {
       gitignoreRules: gitignoreRules,
       dryRun: dryRun,
     );
+    talker.info('Job $jobId started');
 
     // Step 3: Create initial SyncJob and notify.
     var job = SyncJob(
@@ -134,9 +140,14 @@ class SyncExecutor {
     if (dryRun && job.status != SyncJobStatus.error) {
       final transfers =
           await rcloneService.getCompletedTransfers(group: 'job/$jobId');
+      talker.debug('Dry run completed with ${transfers.length} transfers');
+      if (transfers.isNotEmpty) {
+        talker.debug('Sample transfer data: ${transfers.first}');
+      }
       final preview = _buildPreview(profile.id, transfers);
       onDryRunComplete?.call(preview);
     }
+    talker.info('Job $jobId finished with status: ${job.status.name}');
 
     return job;
   }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:talker_flutter/talker_flutter.dart';
 
 import '../../providers/app_config_provider.dart';
 import '../../providers/launch_at_login_provider.dart';
 import '../../providers/rclone_provider.dart';
+import '../../providers/talker_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/update_provider.dart';
 import '../../widgets/status_indicator.dart';
@@ -144,6 +146,21 @@ class SettingsScreen extends ConsumerWidget {
                         content: Text(
                           'Open a terminal and run "rclone config" to manage remotes.',
                         ),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  title: const Text('Show Logs'),
+                  subtitle: const Text(
+                    'View application and rclone daemon logs',
+                  ),
+                  trailing: const Icon(Icons.article_outlined),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TalkerScreen(talker: talker),
                       ),
                     );
                   },
