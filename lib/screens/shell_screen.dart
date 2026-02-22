@@ -147,18 +147,29 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
           ],
         ),
       ),
-      content: _buildContent(),
+      content: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        child: _buildContent(),
+      ),
     );
   }
 
   Widget _buildContent() {
     switch (_selectedItem) {
       case NavItem.dashboard:
-        return const DashboardScreen();
+        return const DashboardScreen(key: ValueKey('dashboard'));
       case NavItem.activity:
-        return const Center(child: Text('Activity'));
+        return const ActivityScreen(key: ValueKey('activity'));
       case NavItem.settings:
-        return const Center(child: Text('Settings'));
+        return const SettingsScreen(key: ValueKey('settings'));
     }
   }
 }

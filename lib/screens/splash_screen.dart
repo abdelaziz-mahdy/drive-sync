@@ -7,7 +7,8 @@ import '../providers/startup_provider.dart';
 ///
 /// Displays the DriveSync logo, a progress indicator, and status messages
 /// for each phase of startup. Shows an error state with retry button if
-/// the daemon fails to start.
+/// the daemon fails to start. Uses AnimatedSwitcher for smooth phase
+/// transitions.
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -61,56 +62,82 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Loading indicator or error icon.
-              if (!isError) ...[
-                const LinearProgressIndicator(),
-                const SizedBox(height: 16),
-              ] else ...[
-                Icon(
-                  Icons.error_outline,
-                  size: 48,
-                  color: colorScheme.error,
-                ),
-                const SizedBox(height: 16),
-              ],
+              // Animated indicator: cross-fades between progress and error.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                child: isError
+                    ? Icon(
+                        Icons.error_outline,
+                        key: const ValueKey('error-icon'),
+                        size: 48,
+                        color: colorScheme.error,
+                      )
+                    : const Padding(
+                        key: ValueKey('progress-bar'),
+                        padding: EdgeInsets.only(bottom: 0),
+                        child: LinearProgressIndicator(),
+                      ),
+              ),
+              const SizedBox(height: 16),
 
-              // Status message.
-              Text(
-                startup.message,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: isError ? colorScheme.error : colorScheme.onSurface,
+              // Animated status message -- cross-fades on phase change.
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                child: Text(
+                  startup.message,
+                  key: ValueKey(startup.phase),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color:
+                        isError ? colorScheme.error : colorScheme.onSurface,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
               ),
 
-              // Error detail.
-              if (startup.errorDetail != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    startup.errorDetail!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onErrorContainer,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
+              // Error detail with animated visibility.
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                child: startup.errorDetail != null
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: colorScheme.errorContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            startup.errorDetail!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onErrorContainer,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
 
-              // Retry button for error states.
-              if (isError) ...[
-                const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: _retry,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                ),
-              ],
+              // Retry button with animated visibility.
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                child: isError
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: FilledButton.icon(
+                          onPressed: _retry,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ],
           ),
         ),

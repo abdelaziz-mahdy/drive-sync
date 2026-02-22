@@ -26,7 +26,15 @@ class DriveSyncApp extends ConsumerWidget {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
-      home: _buildHome(startup),
+      home: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        switchInCurve: Curves.easeOut,
+        switchOutCurve: Curves.easeIn,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        child: _buildHome(startup),
+      ),
     );
   }
 
@@ -34,16 +42,16 @@ class DriveSyncApp extends ConsumerWidget {
     switch (startup.phase) {
       case StartupPhase.ready:
         if (startup.needsOnboarding) {
-          return const OnboardingScreen();
+          return const OnboardingScreen(key: ValueKey('onboarding'));
         }
-        return const ShellScreen();
+        return const ShellScreen(key: ValueKey('shell'));
       case StartupPhase.error:
       case StartupPhase.rcloneNotFound:
         // SplashScreen renders the error state with a retry button.
-        return const SplashScreen();
+        return const SplashScreen(key: ValueKey('splash'));
       default:
         // All intermediate startup phases show the splash screen.
-        return const SplashScreen();
+        return const SplashScreen(key: ValueKey('splash'));
     }
   }
 }

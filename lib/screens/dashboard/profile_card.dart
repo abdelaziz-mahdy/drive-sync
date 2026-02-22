@@ -29,7 +29,7 @@ class ProfileCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header: name + status
+            // Header: name + status (animated)
             Row(
               children: [
                 Expanded(
@@ -41,7 +41,13 @@ class ProfileCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                StatusIndicator(status: status),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: StatusIndicator(
+                    key: ValueKey(status),
+                    status: status,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -73,15 +79,21 @@ class ProfileCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
-            // Progress bar when syncing
-            if (isRunning) ...[
-              SyncProgressBar(
-                progress: job.progress,
-                label:
-                    '${(job.progress * 100).toStringAsFixed(0)}% - ${_formatSpeed(job.speed)}',
-              ),
-              const SizedBox(height: 8),
-            ],
+            // Progress bar when syncing (animated visibility)
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              child: isRunning
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: SyncProgressBar(
+                        progress: job.progress,
+                        label:
+                            '${(job.progress * 100).toStringAsFixed(0)}% - ${_formatSpeed(job.speed)}',
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
 
             // Last sync time
             Text(
