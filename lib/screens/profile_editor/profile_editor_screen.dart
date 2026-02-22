@@ -192,6 +192,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: TextFormField(
+          key: ValueKey('local_path_${i}_${_localPaths[i].hashCode}'),
           initialValue: _localPaths[i],
           decoration: InputDecoration(
             labelText: _localPaths.length == 1
