@@ -164,9 +164,64 @@ class ProfileCard extends ConsumerWidget {
               child: isRunning
                   ? Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: SyncProgressBar(
-                        progress: job.progress,
-                        label: _buildProgressLabel(job),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SyncProgressBar(
+                            progress: job.progress,
+                            label: _buildProgressLabel(job),
+                          ),
+                          if (job.transferring.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            ...job.transferring.take(3).map(
+                              (file) => Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.sync_outlined,
+                                      size: 12,
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        file.name,
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                          color: theme.colorScheme.onSurface
+                                              .withValues(alpha: 0.6),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      FormatUtils.formatSize(file.size),
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${file.percentage.toStringAsFixed(0)}%',
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.primary,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     )
                   : const SizedBox.shrink(),

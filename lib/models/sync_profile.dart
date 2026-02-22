@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:path/path.dart' as p;
 import 'sync_mode.dart';
 
 part 'sync_profile.g.dart';
@@ -26,6 +27,7 @@ class SyncProfile {
   final bool checkFirst;
   final DateTime? lastSyncTime;
   final String? lastSyncStatus;
+  final bool preserveSourceDir;
   final String? lastSyncError;
 
   const SyncProfile({
@@ -46,6 +48,7 @@ class SyncProfile {
     this.bandwidthLimit,
     this.maxTransfers = 4,
     this.checkFirst = true,
+    this.preserveSourceDir = true,
     this.lastSyncTime,
     this.lastSyncStatus,
     this.lastSyncError,
@@ -72,12 +75,22 @@ class SyncProfile {
 
   String get remoteFs => '$remoteName:$cloudFolder';
 
+  String _remoteFsWithBasename(String path) {
+    if (!preserveSourceDir) return remoteFs;
+    final base = p.basename(path);
+    final folder = cloudFolder.endsWith('/')
+        ? cloudFolder
+        : '$cloudFolder/';
+    return '$remoteName:$folder$base';
+  }
+
   String sourceFsFor(String path) {
     switch (syncMode) {
       case SyncMode.backup:
         return path;
       case SyncMode.mirror:
       case SyncMode.download:
+        return _remoteFsWithBasename(path);
       case SyncMode.bisync:
         return remoteFs;
     }
@@ -86,9 +99,10 @@ class SyncProfile {
   String destinationFsFor(String path) {
     switch (syncMode) {
       case SyncMode.backup:
-        return remoteFs;
+        return _remoteFsWithBasename(path);
       case SyncMode.mirror:
       case SyncMode.download:
+        return path;
       case SyncMode.bisync:
         return path;
     }
@@ -186,6 +200,7 @@ class SyncProfile {
     String? bandwidthLimit,
     int? maxTransfers,
     bool? checkFirst,
+    bool? preserveSourceDir,
     DateTime? lastSyncTime,
     String? lastSyncStatus,
     String? lastSyncError,
@@ -208,6 +223,7 @@ class SyncProfile {
       bandwidthLimit: bandwidthLimit ?? this.bandwidthLimit,
       maxTransfers: maxTransfers ?? this.maxTransfers,
       checkFirst: checkFirst ?? this.checkFirst,
+      preserveSourceDir: preserveSourceDir ?? this.preserveSourceDir,
       lastSyncTime: lastSyncTime ?? this.lastSyncTime,
       lastSyncStatus: lastSyncStatus ?? this.lastSyncStatus,
       lastSyncError: lastSyncError ?? this.lastSyncError,

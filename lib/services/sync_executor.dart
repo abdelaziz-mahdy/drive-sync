@@ -156,6 +156,10 @@ class SyncExecutor {
           userError = '${classified.userMessage}\n${classified.suggestion}';
         }
 
+        final transferringList = (stats['transferring'] as List<dynamic>?)
+            ?.map((t) => TransferringFile.fromJson(t as Map<String, dynamic>))
+            .toList() ?? const [];
+
         job = job.copyWith(
           status: newStatus,
           bytesTransferred: (stats['bytes'] as int?) ?? job.bytesTransferred,
@@ -168,6 +172,7 @@ class SyncExecutor {
           eta: (stats['eta'] as num?)?.toDouble(),
           error: userError,
           endTime: finished ? DateTime.now() : null,
+          transferring: transferringList,
         );
         onProgress?.call(job);
 

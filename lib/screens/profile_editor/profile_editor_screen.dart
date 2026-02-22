@@ -49,6 +49,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   late String? _bandwidthLimit;
   late int _maxTransfers;
   late bool _checkFirst;
+  late bool _preserveSourceDir;
   late int _scheduleMinutes;
   late bool _enabled;
 
@@ -80,6 +81,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     _bandwidthLimit = p?.bandwidthLimit;
     _maxTransfers = p?.maxTransfers ?? 4;
     _checkFirst = p?.checkFirst ?? true;
+    _preserveSourceDir = p?.preserveSourceDir ?? true;
     _scheduleMinutes = p?.scheduleMinutes ?? 0;
     _enabled = p?.enabled ?? true;
   }
@@ -118,6 +120,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         bandwidthLimit: _bandwidthLimit,
         maxTransfers: _maxTransfers,
         checkFirst: _checkFirst,
+        preserveSourceDir: _preserveSourceDir,
       );
 
       final notifier = ref.read(profilesProvider.notifier);
@@ -344,6 +347,14 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Add another local path'),
               ),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              title: const Text('Preserve source folder'),
+              subtitle: const Text('Keep directory structure at destination'),
+              value: _preserveSourceDir,
+              onChanged: (v) => setState(() => _preserveSourceDir = v),
+              contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 24),
 

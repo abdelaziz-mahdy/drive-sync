@@ -30,6 +30,7 @@ SyncProfile _$SyncProfileFromJson(Map<String, dynamic> json) => SyncProfile(
   bandwidthLimit: json['bandwidthLimit'] as String?,
   maxTransfers: (json['maxTransfers'] as num?)?.toInt() ?? 4,
   checkFirst: json['checkFirst'] as bool? ?? true,
+  preserveSourceDir: json['preserveSourceDir'] as bool? ?? true,
   lastSyncTime: json['lastSyncTime'] == null
       ? null
       : DateTime.parse(json['lastSyncTime'] as String),
@@ -56,6 +57,7 @@ Map<String, dynamic> _$SyncProfileToJson(SyncProfile instance) =>
       'bandwidthLimit': instance.bandwidthLimit,
       'maxTransfers': instance.maxTransfers,
       'checkFirst': instance.checkFirst,
+      'preserveSourceDir': instance.preserveSourceDir,
       'lastSyncTime': instance.lastSyncTime?.toIso8601String(),
       'lastSyncStatus': instance.lastSyncStatus,
       'lastSyncError': instance.lastSyncError,

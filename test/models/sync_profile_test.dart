@@ -32,28 +32,152 @@ void main() {
     });
 
     group('sourceFs and destinationFs', () {
-      test('backup: local → remote', () {
+      test('backup: local → remote (preserveSourceDir appends basename)', () {
         final p = createProfile(syncMode: SyncMode.backup);
         expect(p.sourceFs, '/home/user/docs');
-        expect(p.destinationFs, 'gdrive:Documents');
+        expect(p.destinationFs, 'gdrive:Documents/docs');
       });
 
-      test('mirror: remote → local', () {
+      test('mirror: remote → local (preserveSourceDir appends basename)', () {
         final p = createProfile(syncMode: SyncMode.mirror);
-        expect(p.sourceFs, 'gdrive:Documents');
+        expect(p.sourceFs, 'gdrive:Documents/docs');
         expect(p.destinationFs, '/home/user/docs');
       });
 
-      test('download: remote → local', () {
+      test('download: remote → local (preserveSourceDir appends basename)',
+          () {
         final p = createProfile(syncMode: SyncMode.download);
-        expect(p.sourceFs, 'gdrive:Documents');
+        expect(p.sourceFs, 'gdrive:Documents/docs');
         expect(p.destinationFs, '/home/user/docs');
       });
 
-      test('bisync: remote → local', () {
+      test('bisync: remote → local (no preserveSourceDir effect)', () {
         final p = createProfile(syncMode: SyncMode.bisync);
         expect(p.sourceFs, 'gdrive:Documents');
         expect(p.destinationFs, '/home/user/docs');
+      });
+    });
+
+    group('preserveSourceDir', () {
+      test('backup: appends basename of local path to cloud folder', () {
+        final p = SyncProfile(
+          id: 'id',
+          name: 'n',
+          remoteName: 'remote',
+          cloudFolder: '/',
+          localPaths: ['/Users/me/test-drive'],
+          includeTypes: [],
+          excludeTypes: [],
+          useIncludeMode: true,
+          syncMode: SyncMode.backup,
+          scheduleMinutes: 0,
+          enabled: true,
+          respectGitignore: false,
+          excludeGitDirs: false,
+          customExcludes: [],
+          preserveSourceDir: true,
+        );
+        expect(
+            p.destinationFsFor('/Users/me/test-drive'), 'remote:/test-drive');
+      });
+
+      test('backup: appends basename to non-root cloud folder', () {
+        final p = SyncProfile(
+          id: 'id',
+          name: 'n',
+          remoteName: 'remote',
+          cloudFolder: '/backups',
+          localPaths: ['/Users/me/test-drive'],
+          includeTypes: [],
+          excludeTypes: [],
+          useIncludeMode: true,
+          syncMode: SyncMode.backup,
+          scheduleMinutes: 0,
+          enabled: true,
+          respectGitignore: false,
+          excludeGitDirs: false,
+          customExcludes: [],
+          preserveSourceDir: true,
+        );
+        expect(p.destinationFsFor('/Users/me/test-drive'),
+            'remote:/backups/test-drive');
+      });
+
+      test('backup: preserveSourceDir false uses remoteFs directly', () {
+        final p = SyncProfile(
+          id: 'id',
+          name: 'n',
+          remoteName: 'remote',
+          cloudFolder: '/',
+          localPaths: ['/Users/me/test-drive'],
+          includeTypes: [],
+          excludeTypes: [],
+          useIncludeMode: true,
+          syncMode: SyncMode.backup,
+          scheduleMinutes: 0,
+          enabled: true,
+          respectGitignore: false,
+          excludeGitDirs: false,
+          customExcludes: [],
+          preserveSourceDir: false,
+        );
+        expect(p.destinationFsFor('/Users/me/test-drive'), 'remote:/');
+      });
+
+      test('download: appends basename to source remote path', () {
+        final p = SyncProfile(
+          id: 'id',
+          name: 'n',
+          remoteName: 'remote',
+          cloudFolder: '/backups',
+          localPaths: ['/Users/me/test-drive'],
+          includeTypes: [],
+          excludeTypes: [],
+          useIncludeMode: true,
+          syncMode: SyncMode.download,
+          scheduleMinutes: 0,
+          enabled: true,
+          respectGitignore: false,
+          excludeGitDirs: false,
+          customExcludes: [],
+          preserveSourceDir: true,
+        );
+        expect(p.sourceFsFor('/Users/me/test-drive'),
+            'remote:/backups/test-drive');
+      });
+
+      test('defaults to true', () {
+        final p = createProfile();
+        expect(p.preserveSourceDir, true);
+      });
+
+      test('JSON round-trip preserves preserveSourceDir', () {
+        final p = createProfile();
+        final json = p.toJson();
+        expect(json['preserveSourceDir'], true);
+        final p2 = SyncProfile.fromJson(json);
+        expect(p2.preserveSourceDir, true);
+      });
+
+      test('JSON defaults to true when field missing', () {
+        final json = {
+          'id': 'id',
+          'name': 'n',
+          'remoteName': 'r',
+          'cloudFolder': 'c',
+          'localPaths': ['/l'],
+          'includeTypes': <String>[],
+          'excludeTypes': <String>[],
+          'useIncludeMode': true,
+          'syncMode': 'backup',
+          'scheduleMinutes': 0,
+          'enabled': true,
+          'respectGitignore': false,
+          'excludeGitDirs': false,
+          'customExcludes': <String>[],
+        };
+        final p = SyncProfile.fromJson(json);
+        expect(p.preserveSourceDir, true);
       });
     });
 
@@ -62,7 +186,7 @@ void main() {
         final p = createProfile(syncMode: SyncMode.backup);
         final data = p.toRcApiData();
         expect(data['srcFs'], '/home/user/docs');
-        expect(data['dstFs'], 'gdrive:Documents');
+        expect(data['dstFs'], 'gdrive:Documents/docs');
         expect(data['_async'], true);
         expect(data.containsKey('_filter'), true);
         expect(data.containsKey('_config'), true);

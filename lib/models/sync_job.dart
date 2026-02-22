@@ -1,5 +1,31 @@
 enum SyncJobStatus { running, finished, error }
 
+class TransferringFile {
+  final String name;
+  final int size;
+  final int bytesTransferred;
+  final double speed;
+  final double percentage;
+
+  const TransferringFile({
+    required this.name,
+    required this.size,
+    required this.bytesTransferred,
+    required this.speed,
+    required this.percentage,
+  });
+
+  factory TransferringFile.fromJson(Map<String, dynamic> data) {
+    return TransferringFile(
+      name: data['name'] as String? ?? '',
+      size: (data['size'] as int?) ?? 0,
+      bytesTransferred: (data['bytes'] as int?) ?? 0,
+      speed: (data['speed'] as num?)?.toDouble() ?? 0,
+      percentage: (data['percentage'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
 class SyncJob {
   final int jobId;
   final String profileId;
@@ -13,6 +39,7 @@ class SyncJob {
   final String? error;
   final DateTime startTime;
   final DateTime? endTime;
+  final List<TransferringFile> transferring;
 
   const SyncJob({
     required this.jobId,
@@ -27,6 +54,7 @@ class SyncJob {
     this.error,
     required this.startTime,
     this.endTime,
+    this.transferring = const [],
   });
 
   bool get isRunning => status == SyncJobStatus.running;
@@ -82,6 +110,7 @@ class SyncJob {
     String? error,
     DateTime? startTime,
     DateTime? endTime,
+    List<TransferringFile>? transferring,
   }) {
     return SyncJob(
       jobId: jobId ?? this.jobId,
@@ -96,6 +125,7 @@ class SyncJob {
       error: error ?? this.error,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
+      transferring: transferring ?? this.transferring,
     );
   }
 }
