@@ -1,5 +1,8 @@
+import 'dart:io' show Platform;
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -187,7 +190,26 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     final theme = Theme.of(context);
     final remotesAsync = ref.watch(remotesProvider);
 
-    return Scaffold(
+    return Shortcuts(
+      shortcuts: <ShortcutActivator, Intent>{
+        SingleActivator(
+          LogicalKeyboardKey.keyS,
+          meta: Platform.isMacOS,
+          control: !Platform.isMacOS,
+        ): const _SaveProfileIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _SaveProfileIntent: CallbackAction<_SaveProfileIntent>(
+            onInvoke: (_) {
+              if (!_saving) _save();
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Scaffold(
       appBar: AppBar(
         title: Text(widget.isEditing ? 'Edit Profile' : 'New Profile'),
       ),
@@ -385,8 +407,16 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
           ],
         ),
       ),
+    ),
+        ),
+      ),
     );
   }
+}
+
+/// Intent for the Cmd+S / Ctrl+S save shortcut.
+class _SaveProfileIntent extends Intent {
+  const _SaveProfileIntent();
 }
 
 class _SectionHeader extends StatelessWidget {

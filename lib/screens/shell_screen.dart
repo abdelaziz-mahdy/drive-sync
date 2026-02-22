@@ -1,4 +1,7 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/profiles_provider.dart';
@@ -7,6 +10,7 @@ import '../widgets/skeleton_loader.dart';
 import '../widgets/status_indicator.dart';
 import 'activity/activity_screen.dart';
 import 'dashboard/dashboard_screen.dart';
+import 'profile_editor/profile_editor_screen.dart';
 import 'settings/settings_screen.dart';
 
 /// The navigation items available in the sidebar.
@@ -21,6 +25,20 @@ enum NavItem {
   final String label;
 }
 
+// ---------------------------------------------------------------------------
+// Intent classes for keyboard shortcuts
+// ---------------------------------------------------------------------------
+
+/// Intent to create a new sync profile.
+class NewProfileIntent extends Intent {
+  const NewProfileIntent();
+}
+
+/// Intent to navigate back / close a dialog.
+class GoBackIntent extends Intent {
+  const GoBackIntent();
+}
+
 /// Main shell screen that provides sidebar navigation and content switching.
 class ShellScreen extends ConsumerStatefulWidget {
   const ShellScreen({super.key});
@@ -32,132 +50,179 @@ class ShellScreen extends ConsumerStatefulWidget {
 class _ShellScreenState extends ConsumerState<ShellScreen> {
   NavItem _selectedItem = NavItem.dashboard;
 
+  void _openNewProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ProfileEditorScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final profilesAsync = ref.watch(profilesProvider);
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return SidebarLayout(
-      sidebar: Material(
-        color: colorScheme.surface,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // App title
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-              child: Text(
-                'DriveSync',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.primary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
+    return Shortcuts(
+      shortcuts: <ShortcutActivator, Intent>{
+        SingleActivator(LogicalKeyboardKey.keyN, meta: Platform.isMacOS, control: !Platform.isMacOS):
+            const NewProfileIntent(),
+        const SingleActivator(LogicalKeyboardKey.escape):
+            const GoBackIntent(),
+      },
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          NewProfileIntent: CallbackAction<NewProfileIntent>(
+            onInvoke: (_) {
+              _openNewProfile();
+              return null;
+            },
+          ),
+          GoBackIntent: CallbackAction<GoBackIntent>(
+            onInvoke: (_) {
+              // Pop the top route if possible, otherwise do nothing.
+              final navigator = Navigator.of(context);
+              if (navigator.canPop()) {
+                navigator.pop();
+              }
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          autofocus: true,
+          child: SidebarLayout(
+            sidebar: Material(
+              color: colorScheme.surface,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // App title
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                    child: Text(
+                      'DriveSync',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
 
-            // Navigation items
-            for (final item in NavItem.values)
-              _NavTile(
-                icon: item.icon,
-                label: item.label,
-                selected: _selectedItem == item,
-                onTap: () => setState(() => _selectedItem = item),
-              ),
+                  // Navigation items
+                  for (final item in NavItem.values)
+                    _NavTile(
+                      icon: item.icon,
+                      label: item.label,
+                      selected: _selectedItem == item,
+                      onTap: () => setState(() => _selectedItem = item),
+                    ),
 
-            const Divider(indent: 16, endIndent: 16),
+                  const Divider(indent: 16, endIndent: 16),
 
-            // Profiles section header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Text(
-                'PROFILES',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurface.withValues(alpha: 0.5),
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
+                  // Profiles section header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                    child: Text(
+                      'PROFILES',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
 
-            // Profile list
-            Expanded(
-              child: profilesAsync.when(
-                data: (profiles) {
-                  if (profiles.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'No profiles yet',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color:
-                              colorScheme.onSurface.withValues(alpha: 0.5),
+                  // Profile list
+                  Expanded(
+                    child: profilesAsync.when(
+                      data: (profiles) {
+                        if (profiles.isEmpty) {
+                          return Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'No profiles yet',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurface
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                          );
+                        }
+                        return ListView.builder(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 8),
+                          itemCount: profiles.length,
+                          itemBuilder: (context, index) {
+                            final profile = profiles[index];
+                            final status =
+                                StatusIndicator.fromProfile(profile);
+                            return ListTile(
+                              dense: true,
+                              leading:
+                                  StatusIndicator(status: status, size: 10),
+                              title: Text(
+                                profile.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              onTap: () {
+                                setState(
+                                    () => _selectedItem = NavItem.dashboard);
+                              },
+                            );
+                          },
+                        );
+                      },
+                      loading: () => SkeletonLoader(
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: List.generate(
+                              3,
+                              (_) => const Padding(
+                                padding: EdgeInsets.only(bottom: 8),
+                                child: SkeletonLine(
+                                    height: 32, borderRadius: 8),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    );
-                  }
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    itemCount: profiles.length,
-                    itemBuilder: (context, index) {
-                      final profile = profiles[index];
-                      final status =
-                          StatusIndicator.fromProfile(profile);
-                      return ListTile(
-                        dense: true,
-                        leading: StatusIndicator(status: status, size: 10),
-                        title: Text(
-                          profile.name,
-                          overflow: TextOverflow.ellipsis,
+                      error: (error, _) => Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'Error loading profiles',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.error,
+                          ),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        onTap: () {
-                          // Navigate to dashboard and potentially highlight profile
-                          setState(() => _selectedItem = NavItem.dashboard);
-                        },
-                      );
-                    },
-                  );
-                },
-                loading: () => SkeletonLoader(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: List.generate(3, (_) => const Padding(
-                        padding: EdgeInsets.only(bottom: 8),
-                        child: SkeletonLine(height: 32, borderRadius: 8),
-                      )),
+                      ),
                     ),
                   ),
-                ),
-                error: (error, _) => Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Error loading profiles',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.error,
-                    ),
-                  ),
-                ),
+                ],
               ),
             ),
-          ],
+            content: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
+              child: _buildContent(),
+            ),
+          ),
         ),
-      ),
-      content: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        switchInCurve: Curves.easeOut,
-        switchOutCurve: Curves.easeIn,
-        transitionBuilder: (child, animation) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
-        },
-        child: _buildContent(),
       ),
     );
   }
