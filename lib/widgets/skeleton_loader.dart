@@ -163,10 +163,10 @@ class SkeletonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return const Card(
       clipBehavior: Clip.antiAlias,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -174,25 +174,25 @@ class SkeletonCard extends StatelessWidget {
             // Title row
             Row(
               children: [
-                const Expanded(child: SkeletonLine(width: 120, height: 20)),
-                const SizedBox(width: 8),
-                const SkeletonCircle(size: 12),
+                Expanded(child: SkeletonLine(width: 120, height: 20)),
+                SizedBox(width: 8),
+                SkeletonCircle(size: 12),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: 12),
             // Sync mode
-            const SkeletonLine(width: 100, height: 14),
-            const SizedBox(height: 12),
+            SkeletonLine(width: 100, height: 14),
+            SizedBox(height: 12),
             // Paths
-            const SkeletonLine(height: 14),
-            const SizedBox(height: 6),
-            const SkeletonLine(width: 180, height: 14),
-            const SizedBox(height: 16),
+            SkeletonLine(height: 14),
+            SizedBox(height: 6),
+            SkeletonLine(width: 180, height: 14),
+            SizedBox(height: 16),
             // Last sync
-            const SkeletonLine(width: 80, height: 12),
-            const SizedBox(height: 16),
+            SkeletonLine(width: 80, height: 12),
+            SizedBox(height: 16),
             // Buttons
-            const SkeletonLine(height: 36, borderRadius: 8),
+            SkeletonLine(height: 36, borderRadius: 8),
           ],
         ),
       ),
@@ -206,23 +206,23 @@ class SkeletonListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const SkeletonCircle(size: 36),
-          const SizedBox(width: 12),
+          SkeletonCircle(size: 36),
+          SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 SkeletonLine(width: 160, height: 14),
                 SizedBox(height: 6),
                 SkeletonLine(width: 100, height: 12),
               ],
             ),
           ),
-          const SkeletonLine(width: 60, height: 12),
+          SkeletonLine(width: 60, height: 12),
         ],
       ),
     );

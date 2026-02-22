@@ -129,7 +129,7 @@ class _SummaryBar extends StatelessWidget {
       parts.add('${preview.filesToDelete.length} to delete');
     }
 
-    final summary = parts.isEmpty ? 'No changes detected' : parts.join(', ');
+    final summary = parts.isEmpty ? 'Everything is in sync' : parts.join(', ');
 
     return Container(
       width: double.infinity,

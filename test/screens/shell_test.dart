@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:drive_sync/models/app_config.dart';
 import 'package:drive_sync/models/sync_profile.dart';
 import 'package:drive_sync/models/sync_mode.dart';
 import 'package:drive_sync/providers/app_config_provider.dart';
 import 'package:drive_sync/providers/profiles_provider.dart';
-import 'package:drive_sync/providers/sync_jobs_provider.dart';
 import 'package:drive_sync/screens/shell_screen.dart';
 import 'package:drive_sync/services/config_store.dart';
 
@@ -27,6 +27,11 @@ class TestProfilesNotifier extends ProfilesNotifier {
 
   @override
   Future<List<SyncProfile>> build() async => _profiles;
+}
+
+class FakeAppConfigNotifier extends AppConfigNotifier {
+  @override
+  Future<AppConfig> build() async => AppConfig.defaults();
 }
 
 void main() {
@@ -166,24 +171,29 @@ void main() {
           overrides: [
             configStoreProvider.overrideWithValue(fakeStore),
             profilesProvider.overrideWith(() => TestProfilesNotifier([])),
+            appConfigProvider.overrideWith(() => FakeAppConfigNotifier()),
           ],
           child: const MaterialApp(home: ShellScreen()),
         ),
       );
 
-      await tester.pumpAndSettle();
+      // Use pump() instead of pumpAndSettle() because screens contain
+      // loading state animations (skeletons, indicators) that never settle.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       // Tap Activity
       await tester.tap(find.text('Activity'));
-      await tester.pumpAndSettle();
-
-      // Activity placeholder content should be displayed
-      // (the content area will show "Activity" text from placeholder)
-      // The navigation tile should be selected
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
       // Tap Settings
       await tester.tap(find.text('Settings'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Verify the settings screen content area changed
+      expect(find.text('General'), findsOneWidget);
 
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
