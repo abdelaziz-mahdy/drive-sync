@@ -225,7 +225,8 @@ void main() {
         final job = await executor.executeSync(profile);
 
         expect(job.status, SyncJobStatus.error);
-        expect(job.error, 'permission denied');
+        // Error is now classified into a user-friendly message
+        expect(job.error, contains('Permission'));
         expect(job.endTime, isNotNull);
       });
 
@@ -237,7 +238,7 @@ void main() {
           pollCount: 1,
           dryRun: true,
           success: false,
-          error: 'network error',
+          error: 'connection refused to remote server',
         );
 
         await executor.executeSync(
@@ -247,6 +248,100 @@ void main() {
         );
 
         expect(dryRunCallbackCalled, isFalse);
+      });
+    });
+
+    group('error classification integration', () {
+      test('classifies auth errors with user-friendly message', () async {
+        final profile = testProfile();
+        mockSyncFlow(
+          profile: profile,
+          pollCount: 1,
+          success: false,
+          error: 'googleapi: Error 401: Token has been expired or revoked',
+        );
+
+        final job = await executor.executeSync(profile);
+
+        expect(job.status, SyncJobStatus.error);
+        expect(job.error, contains('expired'));
+        expect(job.error, contains('Re-authorize'));
+      });
+
+      test('classifies bisync conflict errors', () async {
+        final profile = testProfile(syncMode: SyncMode.bisync);
+        mockSyncFlow(
+          profile: profile,
+          pollCount: 1,
+          success: false,
+          error: 'bisync critical error: files changed on both sides',
+        );
+
+        final job = await executor.executeSync(profile);
+
+        expect(job.status, SyncJobStatus.error);
+        expect(job.error, contains('conflict'));
+      });
+
+      test('classifies disk full errors', () async {
+        final profile = testProfile();
+        mockSyncFlow(
+          profile: profile,
+          pollCount: 1,
+          success: false,
+          error: 'write /home/user/file.zip: no space left on device',
+        );
+
+        final job = await executor.executeSync(profile);
+
+        expect(job.status, SyncJobStatus.error);
+        expect(job.error, contains('full'));
+        expect(job.error, contains('Free up'));
+      });
+
+      test('classifies missing path errors', () async {
+        final profile = testProfile();
+        mockSyncFlow(
+          profile: profile,
+          pollCount: 1,
+          success: false,
+          error: 'directory not found: /home/user/nonexistent',
+        );
+
+        final job = await executor.executeSync(profile);
+
+        expect(job.status, SyncJobStatus.error);
+        expect(job.error, contains('does not exist'));
+      });
+
+      test('classifies network errors from rclone', () async {
+        final profile = testProfile();
+        mockSyncFlow(
+          profile: profile,
+          pollCount: 1,
+          success: false,
+          error: 'dial tcp: connection refused',
+        );
+
+        final job = await executor.executeSync(profile);
+
+        expect(job.status, SyncJobStatus.error);
+        expect(job.error, contains('Network'));
+      });
+
+      test('classifies unknown errors gracefully', () async {
+        final profile = testProfile();
+        mockSyncFlow(
+          profile: profile,
+          pollCount: 1,
+          success: false,
+          error: 'some completely unknown error xyz',
+        );
+
+        final job = await executor.executeSync(profile);
+
+        expect(job.status, SyncJobStatus.error);
+        expect(job.error, contains('unexpected'));
       });
     });
 

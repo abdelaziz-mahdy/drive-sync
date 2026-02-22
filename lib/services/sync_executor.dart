@@ -1,9 +1,13 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
+
 import '../models/file_change.dart';
 import '../models/sync_job.dart';
 import '../models/sync_preview.dart';
 import '../models/sync_profile.dart';
+import '../utils/dio_error_handler.dart';
+import 'error_classifier.dart';
 import 'gitignore_service.dart';
 import 'rclone_service.dart';
 
@@ -12,6 +16,7 @@ import 'rclone_service.dart';
 class SyncExecutor {
   final RcloneService rcloneService;
   final GitignoreService gitignoreService;
+  final ErrorClassifier errorClassifier;
 
   /// Poll interval for checking job status during sync.
   final Duration pollInterval;
@@ -19,6 +24,7 @@ class SyncExecutor {
   SyncExecutor({
     required this.rcloneService,
     required this.gitignoreService,
+    this.errorClassifier = const ErrorClassifier(),
     this.pollInterval = const Duration(seconds: 2),
   });
 
@@ -85,6 +91,14 @@ class SyncExecutor {
           newStatus = SyncJobStatus.running;
         }
 
+        // Classify rclone-reported errors into user-friendly messages.
+        String? userError;
+        if (finished && !success) {
+          final raw = errorStr ?? '';
+          final classified = errorClassifier.classify(raw);
+          userError = '${classified.userMessage}\n${classified.suggestion}';
+        }
+
         job = job.copyWith(
           status: newStatus,
           bytesTransferred: (stats['bytes'] as int?) ?? job.bytesTransferred,
@@ -92,17 +106,23 @@ class SyncExecutor {
           filesTransferred:
               (stats['transfers'] as int?) ?? job.filesTransferred,
           speed: (stats['speed'] as num?)?.toDouble() ?? job.speed,
-          error: (finished && !success) ? (errorStr ?? '') : null,
+          error: userError,
           endTime: finished ? DateTime.now() : null,
         );
         onProgress?.call(job);
 
         if (finished) break;
       } catch (e) {
-        // If polling fails, mark the job as errored and break.
+        // If polling fails, produce a user-friendly error message.
+        final String friendlyError;
+        if (e is DioException) {
+          friendlyError = DioErrorHandler.userMessage(e);
+        } else {
+          friendlyError = e.toString();
+        }
         job = job.copyWith(
           status: SyncJobStatus.error,
-          error: e.toString(),
+          error: friendlyError,
           endTime: DateTime.now(),
         );
         onProgress?.call(job);
