@@ -6,6 +6,7 @@ import '../../models/sync_profile.dart';
 import '../../providers/profiles_provider.dart';
 import '../../providers/sync_history_provider.dart';
 import '../../providers/sync_jobs_provider.dart';
+import '../../widgets/skeleton_loader.dart';
 import 'running_job_card.dart';
 import 'sync_history_tile.dart';
 
@@ -146,8 +147,15 @@ class ActivityScreen extends ConsumerWidget {
                 ),
               );
             },
-            loading: () => const SliverToBoxAdapter(
-              child: Center(child: CircularProgressIndicator()),
+            loading: () => SliverToBoxAdapter(
+              child: SkeletonLoader(
+                child: Column(
+                  children: List.generate(
+                    5,
+                    (_) => const SkeletonListTile(),
+                  ),
+                ),
+              ),
             ),
             error: (error, _) => SliverToBoxAdapter(
               child: Padding(

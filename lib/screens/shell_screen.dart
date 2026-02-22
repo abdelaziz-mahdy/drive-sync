@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/profiles_provider.dart';
 import '../widgets/sidebar_layout.dart';
+import '../widgets/skeleton_loader.dart';
 import '../widgets/status_indicator.dart';
+import 'activity/activity_screen.dart';
 import 'dashboard/dashboard_screen.dart';
+import 'settings/settings_screen.dart';
 
 /// The navigation items available in the sidebar.
 enum NavItem {
@@ -118,8 +121,17 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
                     },
                   );
                 },
-                loading: () => const Center(
-                  child: CircularProgressIndicator(),
+                loading: () => SkeletonLoader(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: List.generate(3, (_) => const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: SkeletonLine(height: 32, borderRadius: 8),
+                      )),
+                    ),
+                  ),
                 ),
                 error: (error, _) => Padding(
                   padding: const EdgeInsets.all(16),
