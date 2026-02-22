@@ -30,7 +30,7 @@ class RcloneService {
   /// POST /rc/noop - returns true if the daemon is reachable.
   Future<bool> healthCheck() async {
     try {
-      await _dio.post('/rc/noop');
+      await _dio.post('/rc/noop', data: {});
       return true;
     } catch (_) {
       return false;
@@ -39,18 +39,18 @@ class RcloneService {
 
   /// POST /core/version - returns version info from rclone.
   Future<Map<String, dynamic>> getVersion() async {
-    final response = await _dio.post('/core/version');
+    final response = await _dio.post('/core/version', data: {});
     return response.data as Map<String, dynamic>;
   }
 
   /// POST /core/quit - tells rclone to shut down. May throw, that's OK.
   Future<void> quit() async {
-    await _dio.post('/core/quit');
+    await _dio.post('/core/quit', data: {});
   }
 
   /// POST /config/listremotes - returns a list of configured remote names.
   Future<List<String>> listRemotes() async {
-    final response = await _dio.post('/config/listremotes');
+    final response = await _dio.post('/config/listremotes', data: {});
     final data = response.data as Map<String, dynamic>;
     final remotes = data['remotes'] as List<dynamic>? ?? [];
     return remotes.cast<String>();
@@ -139,7 +139,7 @@ class RcloneService {
 
   /// POST /job/list - returns a list of all jobs.
   Future<Map<String, dynamic>> getJobList() async {
-    final response = await _dio.post('/job/list');
+    final response = await _dio.post('/job/list', data: {});
     return response.data as Map<String, dynamic>;
   }
 
@@ -155,7 +155,7 @@ class RcloneService {
   Future<Map<String, dynamic>> getTransferStats({String? group}) async {
     final response = await _dio.post(
       '/core/stats',
-      data: group != null ? {'group': group} : null,
+      data: group != null ? {'group': group} : <String, dynamic>{},
     );
     return response.data as Map<String, dynamic>;
   }
@@ -166,7 +166,7 @@ class RcloneService {
   }) async {
     final response = await _dio.post(
       '/core/transferred',
-      data: group != null ? {'group': group} : null,
+      data: group != null ? {'group': group} : <String, dynamic>{},
     );
     final data = response.data as Map<String, dynamic>;
     final transferred = data['transferred'] as List<dynamic>? ?? [];
@@ -177,7 +177,7 @@ class RcloneService {
   Future<void> resetStats({String? group}) async {
     await _dio.post(
       '/core/stats-reset',
-      data: group != null ? {'group': group} : null,
+      data: group != null ? {'group': group} : <String, dynamic>{},
     );
   }
 
@@ -192,7 +192,7 @@ class RcloneService {
 
   /// POST /core/bwlimit - gets current bandwidth limit.
   Future<Map<String, dynamic>> getBandwidthLimit() async {
-    final response = await _dio.post('/core/bwlimit');
+    final response = await _dio.post('/core/bwlimit', data: {});
     return response.data as Map<String, dynamic>;
   }
 }

@@ -7,7 +7,20 @@ class RcloneDaemonManager {
   final String appSupportDir;
   Process? _process;
 
+  /// Collects stdout/stderr from the daemon process for diagnostics.
+  final List<String> processLogs = [];
+
+  /// Maximum number of log lines to retain.
+  static const int _maxLogLines = 500;
+
   RcloneDaemonManager({required this.appSupportDir});
+
+  void _addLog(String line) {
+    processLogs.add(line);
+    if (processLogs.length > _maxLogLines) {
+      processLogs.removeAt(0);
+    }
+  }
 
   /// Path to the PID file used to track the daemon process.
   String get pidFilePath => '$appSupportDir/rclone.pid';
@@ -66,19 +79,41 @@ class RcloneDaemonManager {
       environment['RCLONE_CONFIG_PASS'] = configPass;
     }
 
+    final rclonePath = await getRclonePath() ?? 'rclone';
+    final args = [
+      'rcd',
+      '--rc-user',
+      user,
+      '--rc-pass',
+      pass,
+      '--rc-addr',
+      'localhost:$port',
+    ];
+
+    _addLog('[DriveSync] Starting: $rclonePath ${args.join(' ')}');
+
     _process = await Process.start(
-      'rclone',
-      [
-        'rcd',
-        '--rc-user',
-        user,
-        '--rc-pass',
-        pass,
-        '--rc-addr',
-        'localhost:$port',
-      ],
+      rclonePath,
+      args,
       environment: environment.isNotEmpty ? environment : null,
     );
+
+    _addLog('[DriveSync] Process started with PID: ${_process!.pid}');
+
+    // Capture stdout and stderr for diagnostics.
+    _process!.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) => _addLog('[rclone stdout] $line'));
+    _process!.stderr
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())
+        .listen((line) => _addLog('[rclone stderr] $line'));
+
+    // Log when the process exits.
+    _process!.exitCode.then((code) {
+      _addLog('[DriveSync] rclone process exited with code: $code');
+    });
 
     // Write PID to file for tracking.
     final pidFile = File(pidFilePath);

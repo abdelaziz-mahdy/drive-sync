@@ -300,10 +300,23 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 child: !isRcloneNotFound && isError
                     ? Padding(
                         padding: const EdgeInsets.only(top: 24),
-                        child: FilledButton.icon(
-                          onPressed: _retry,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            FilledButton.icon(
+                              onPressed: _retry,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry'),
+                            ),
+                            if (startup.logs.isNotEmpty) ...[
+                              const SizedBox(width: 12),
+                              FilledButton.tonalIcon(
+                                onPressed: () => _showLogs(context, startup.logs),
+                                icon: const Icon(Icons.article_outlined, size: 18),
+                                label: const Text('Show Logs'),
+                              ),
+                            ],
+                          ],
                         ),
                       )
                     : const SizedBox.shrink(),
@@ -311,6 +324,67 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Shows a dialog with the startup logs that can be copied.
+  void _showLogs(BuildContext context, List<String> logs) {
+    final theme = Theme.of(context);
+    final logText = logs.join('\n');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Startup Logs'),
+        content: SizedBox(
+          width: 600,
+          height: 400,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SelectionArea(
+                    child: SingleChildScrollView(
+                      child: Text(
+                        logText,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontFamily: 'monospace',
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: logText));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Logs copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            icon: const Icon(Icons.copy, size: 18),
+            label: const Text('Copy All'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }

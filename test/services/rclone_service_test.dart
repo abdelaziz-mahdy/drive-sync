@@ -39,7 +39,7 @@ void main() {
       test('returns true when daemon is reachable', () async {
         dioAdapter.onPost('/rc/noop', (server) {
           server.reply(200, {});
-        });
+        }, data: {});
 
         expect(await service.healthCheck(), true);
       });
@@ -52,7 +52,7 @@ void main() {
               requestOptions: RequestOptions(path: '/rc/noop'),
             ),
           );
-        });
+        }, data: {});
 
         expect(await service.healthCheck(), false);
       });
@@ -70,7 +70,7 @@ void main() {
 
         dioAdapter.onPost('/core/version', (server) {
           server.reply(200, versionData);
-        });
+        }, data: {});
 
         final result = await service.getVersion();
         expect(result['version'], 'rclone v1.64.0');
@@ -82,7 +82,7 @@ void main() {
       test('sends quit command', () async {
         dioAdapter.onPost('/core/quit', (server) {
           server.reply(200, {});
-        });
+        }, data: {});
 
         // Should not throw.
         await service.quit();
@@ -95,7 +95,7 @@ void main() {
           server.reply(200, {
             'remotes': ['gdrive', 'onedrive'],
           });
-        });
+        }, data: {});
 
         final remotes = await service.listRemotes();
         expect(remotes, ['gdrive', 'onedrive']);
@@ -104,7 +104,7 @@ void main() {
       test('returns empty list when no remotes configured', () async {
         dioAdapter.onPost('/config/listremotes', (server) {
           server.reply(200, {'remotes': []});
-        });
+        }, data: {});
 
         final remotes = await service.listRemotes();
         expect(remotes, isEmpty);
@@ -249,7 +249,7 @@ void main() {
           server.reply(200, {
             'jobids': [1, 2, 3],
           });
-        });
+        }, data: {});
 
         final jobs = await service.getJobList();
         expect(jobs['jobids'], [1, 2, 3]);
@@ -278,7 +278,7 @@ void main() {
             'speed': 512.0,
             'transfers': 5,
           });
-        });
+        }, data: {});
 
         final stats = await service.getTransferStats();
         expect(stats['bytes'], 1024);
@@ -307,7 +307,7 @@ void main() {
               {'Name': 'file2.txt', 'Size': 200},
             ],
           });
-        });
+        }, data: {});
 
         final transfers = await service.getCompletedTransfers();
         expect(transfers.length, 2);
@@ -317,7 +317,7 @@ void main() {
       test('returns empty list when no transfers', () async {
         dioAdapter.onPost('/core/transferred', (server) {
           server.reply(200, {'transferred': []});
-        });
+        }, data: {});
 
         final transfers = await service.getCompletedTransfers();
         expect(transfers, isEmpty);
@@ -328,7 +328,7 @@ void main() {
       test('sends reset command', () async {
         dioAdapter.onPost('/core/stats-reset', (server) {
           server.reply(200, {});
-        });
+        }, data: {});
 
         await service.resetStats();
       });
@@ -359,7 +359,7 @@ void main() {
             'bytesPerSecond': -1,
             'rate': 'off',
           });
-        });
+        }, data: {});
 
         final result = await service.getBandwidthLimit();
         expect(result['rate'], 'off');
