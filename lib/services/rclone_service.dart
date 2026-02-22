@@ -79,10 +79,11 @@ class RcloneService {
     String remote,
     String path,
   ) async {
+    final fs = remote.endsWith(':') ? remote : '$remote:';
     final response = await _dio.post(
       '/operations/list',
       data: {
-        'fs': remote,
+        'fs': fs,
         'remote': path,
         'opt': {'dirsOnly': true},
       },
@@ -98,10 +99,11 @@ class RcloneService {
     String remote,
     String path,
   ) async {
+    final fs = remote.endsWith(':') ? remote : '$remote:';
     final response = await _dio.post(
       '/operations/list',
       data: {
-        'fs': remote,
+        'fs': fs,
         'remote': path,
       },
     );
