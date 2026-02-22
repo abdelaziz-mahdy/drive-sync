@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:drive_sync/models/sync_job.dart';
 import 'package:drive_sync/models/sync_mode.dart';
 import 'package:drive_sync/models/sync_profile.dart';
 import 'package:drive_sync/providers/app_config_provider.dart';
 import 'package:drive_sync/providers/profiles_provider.dart';
-import 'package:drive_sync/providers/sync_jobs_provider.dart';
 import 'package:drive_sync/screens/dashboard/dashboard_screen.dart';
 import 'package:drive_sync/screens/dashboard/profile_card.dart';
 import 'package:drive_sync/services/config_store.dart';
