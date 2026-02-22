@@ -18,10 +18,10 @@ class FileChange {
     FileChangeAction action,
   ) {
     return FileChange(
-      path: data['Name'] as String,
-      size: data['Size'] as int,
+      path: (data['Name'] as String?) ?? data['Remote'] as String? ?? '',
+      size: (data['Size'] as int?) ?? 0,
       modTime: data['ModTime'] != null
-          ? DateTime.parse(data['ModTime'] as String)
+          ? DateTime.tryParse(data['ModTime'] as String)
           : null,
       action: action,
     );
