@@ -15,9 +15,13 @@ import 'sync_history_tile.dart';
 class ActivityScreen extends ConsumerWidget {
   const ActivityScreen({super.key});
 
-  String _profileName(String profileId, List<SyncProfile> profiles) {
+  SyncProfile? _findProfile(String profileId, List<SyncProfile> profiles) {
     final match = profiles.where((p) => p.id == profileId);
-    return match.isNotEmpty ? match.first.name : profileId;
+    return match.isNotEmpty ? match.first : null;
+  }
+
+  String _profileName(String profileId, List<SyncProfile> profiles) {
+    return _findProfile(profileId, profiles)?.name ?? profileId;
   }
 
   SyncMode _profileSyncMode(String profileId, List<SyncProfile> profiles) {
@@ -136,6 +140,7 @@ class ActivityScreen extends ConsumerWidget {
                     return SyncHistoryTile(
                       entry: entry,
                       profileName: _profileName(entry.profileId, profiles),
+                      profile: _findProfile(entry.profileId, profiles),
                     );
                   },
                 ),

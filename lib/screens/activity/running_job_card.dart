@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/sync_job.dart';
+import '../../utils/format_utils.dart';
 import '../../models/sync_mode.dart';
 import '../../widgets/progress_bar.dart';
 import '../../widgets/sync_mode_icon.dart';
@@ -19,18 +20,6 @@ class RunningJobCard extends StatelessWidget {
   final String profileName;
   final SyncMode syncMode;
   final VoidCallback? onCancel;
-
-  String _formatSpeed(double bytesPerSecond) {
-    if (bytesPerSecond <= 0) return '0 B/s';
-    if (bytesPerSecond < 1024) return '${bytesPerSecond.toStringAsFixed(0)} B/s';
-    if (bytesPerSecond < 1024 * 1024) {
-      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
-    }
-    if (bytesPerSecond < 1024 * 1024 * 1024) {
-      return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
-    }
-    return '${(bytesPerSecond / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB/s';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +62,7 @@ class RunningJobCard extends StatelessWidget {
             SyncProgressBar(
               progress: job.progress,
               label:
-                  '${(job.progress * 100).toStringAsFixed(0)}% — ${_formatSpeed(job.speed)}',
+                  '${(job.progress * 100).toStringAsFixed(0)}% — ${FormatUtils.formatSpeed(job.speed)}',
             ),
             const SizedBox(height: 8),
             Text(

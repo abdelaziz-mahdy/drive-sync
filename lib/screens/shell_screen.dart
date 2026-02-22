@@ -171,8 +171,12 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               onTap: () {
-                                setState(
-                                    () => _selectedItem = NavItem.dashboard);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        ProfileEditorScreen(profile: profile),
+                                  ),
+                                );
                               },
                             );
                           },

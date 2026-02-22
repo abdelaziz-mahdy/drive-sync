@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/file_change.dart';
 import '../../models/sync_preview.dart';
 import '../../theme/color_schemes.dart';
+import '../../utils/format_utils.dart';
 import '../../widgets/empty_state.dart';
 
 /// Displays the results of a dry-run sync preview, showing files to add,
@@ -17,23 +18,11 @@ class DryRunResultsScreen extends StatelessWidget {
   final SyncPreview preview;
   final VoidCallback? onExecuteSync;
 
-  /// Format bytes into a human-readable string.
-  static String formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
-
   int _sectionSize(List<FileChange> files) =>
       files.fold(0, (sum, f) => sum + f.size);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dry Run Results'),
@@ -51,7 +40,7 @@ class DryRunResultsScreen extends StatelessWidget {
                     children: [
                       _FileChangeSection(
                         title:
-                            'Files to Add (${preview.filesToAdd.length}) - ${formatSize(_sectionSize(preview.filesToAdd))}',
+                            'Files to Add (${preview.filesToAdd.length}) - ${FormatUtils.formatSize(_sectionSize(preview.filesToAdd))}',
                         icon: Icons.add_circle_outline,
                         color: AppColors.success,
                         files: preview.filesToAdd,
@@ -59,7 +48,7 @@ class DryRunResultsScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       _FileChangeSection(
                         title:
-                            'Files to Update (${preview.filesToUpdate.length}) - ${formatSize(_sectionSize(preview.filesToUpdate))}',
+                            'Files to Update (${preview.filesToUpdate.length}) - ${FormatUtils.formatSize(_sectionSize(preview.filesToUpdate))}',
                         icon: Icons.update,
                         color: AppColors.syncing,
                         files: preview.filesToUpdate,
@@ -67,7 +56,7 @@ class DryRunResultsScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       _FileChangeSection(
                         title:
-                            'Files to Delete (${preview.filesToDelete.length}) - ${formatSize(_sectionSize(preview.filesToDelete))}',
+                            'Files to Delete (${preview.filesToDelete.length}) - ${FormatUtils.formatSize(_sectionSize(preview.filesToDelete))}',
                         icon: Icons.delete_outline,
                         color: AppColors.error,
                         files: preview.filesToDelete,
@@ -120,7 +109,7 @@ class _SummaryBar extends StatelessWidget {
 
     if (preview.filesToAdd.isNotEmpty) {
       parts.add(
-          '${preview.filesToAdd.length} to add (${DryRunResultsScreen.formatSize(addSize)})');
+          '${preview.filesToAdd.length} to add (${FormatUtils.formatSize(addSize)})');
     }
     if (preview.filesToUpdate.isNotEmpty) {
       parts.add('${preview.filesToUpdate.length} to update');
@@ -220,7 +209,7 @@ class _FileChangeSection extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 trailing: Text(
-                  DryRunResultsScreen.formatSize(file.size),
+                  FormatUtils.formatSize(file.size),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),

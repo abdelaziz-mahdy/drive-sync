@@ -1,6 +1,7 @@
 import 'package:drive_sync/models/file_change.dart';
 import 'package:drive_sync/models/sync_preview.dart';
 import 'package:drive_sync/screens/dry_run/dry_run_results_screen.dart';
+import 'package:drive_sync/utils/format_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -163,23 +164,23 @@ void main() {
 
   group('DryRunResultsScreen.formatSize', () {
     test('formats bytes correctly', () {
-      expect(DryRunResultsScreen.formatSize(0), '0 B');
-      expect(DryRunResultsScreen.formatSize(512), '512 B');
-      expect(DryRunResultsScreen.formatSize(1023), '1023 B');
+      expect(FormatUtils.formatSize(0), '0 B');
+      expect(FormatUtils.formatSize(512), '512 B');
+      expect(FormatUtils.formatSize(1023), '1023 B');
     });
 
     test('formats kilobytes correctly', () {
-      expect(DryRunResultsScreen.formatSize(1024), '1.0 KB');
-      expect(DryRunResultsScreen.formatSize(1536), '1.5 KB');
+      expect(FormatUtils.formatSize(1024), '1.0 KB');
+      expect(FormatUtils.formatSize(1536), '1.5 KB');
     });
 
     test('formats megabytes correctly', () {
-      expect(DryRunResultsScreen.formatSize(1048576), '1.0 MB');
-      expect(DryRunResultsScreen.formatSize(5242880), '5.0 MB');
+      expect(FormatUtils.formatSize(1048576), '1.0 MB');
+      expect(FormatUtils.formatSize(5242880), '5.0 MB');
     });
 
     test('formats gigabytes correctly', () {
-      expect(DryRunResultsScreen.formatSize(1073741824), '1.0 GB');
+      expect(FormatUtils.formatSize(1073741824), '1.0 GB');
     });
   });
 }

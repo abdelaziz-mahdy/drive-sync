@@ -12,6 +12,7 @@ import '../../widgets/progress_bar.dart';
 import '../../widgets/status_indicator.dart';
 import '../../widgets/sync_mode_icon.dart';
 import '../dry_run/dry_run_results_screen.dart';
+import '../../utils/format_utils.dart';
 import '../profile_editor/profile_editor_screen.dart';
 
 /// Material card displaying a sync profile's status and actions.
@@ -173,7 +174,7 @@ class ProfileCard extends ConsumerWidget {
 
             // Last sync time
             Text(
-              _formatLastSync(profile.lastSyncTime),
+              FormatUtils.formatRelativeTime(profile.lastSyncTime),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),
@@ -212,20 +213,6 @@ class ProfileCard extends ConsumerWidget {
     );
   }
 
-  String _formatLastSync(DateTime? lastSync) {
-    if (lastSync == null) return 'Never synced';
-
-    final now = DateTime.now();
-    final diff = now.difference(lastSync);
-
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-    if (diff.inHours < 24) return '${diff.inHours} hours ago';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-
-    return '${lastSync.day}/${lastSync.month}/${lastSync.year}';
-  }
-
   String _buildProgressLabel(SyncJob job) {
     final parts = <String>[];
 
@@ -241,31 +228,15 @@ class ProfileCard extends ConsumerWidget {
 
     // Speed
     if (job.speed > 0) {
-      parts.add(_formatSpeed(job.speed));
+      parts.add(FormatUtils.formatSpeed(job.speed));
     }
 
     // ETA
     if (job.eta != null && job.eta! > 0 && !job.eta!.isInfinite) {
-      parts.add('${_formatEta(job.eta!.toInt())} left');
+      parts.add('${FormatUtils.formatEta(job.eta!.toInt())} left');
     }
 
     return parts.join(' - ');
-  }
-
-  String _formatEta(int seconds) {
-    if (seconds < 60) return '${seconds}s';
-    if (seconds < 3600) return '${seconds ~/ 60}m ${seconds % 60}s';
-    final h = seconds ~/ 3600;
-    final m = (seconds % 3600) ~/ 60;
-    return '${h}h ${m}m';
-  }
-
-  String _formatSpeed(double bytesPerSecond) {
-    if (bytesPerSecond < 1024) return '${bytesPerSecond.toStringAsFixed(0)} B/s';
-    if (bytesPerSecond < 1024 * 1024) {
-      return '${(bytesPerSecond / 1024).toStringAsFixed(1)} KB/s';
-    }
-    return '${(bytesPerSecond / (1024 * 1024)).toStringAsFixed(1)} MB/s';
   }
 }
 
