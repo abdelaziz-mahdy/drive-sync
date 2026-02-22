@@ -17,19 +17,25 @@ class SyncModeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: SyncMode.values.map((mode) {
-        final isSelected = mode == selected;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: _SyncModeCard(
-            mode: mode,
-            isSelected: isSelected,
-            onTap: () => onChanged(mode),
-          ),
-        );
-      }).toList(),
+    return RadioGroup<SyncMode>(
+      groupValue: selected,
+      onChanged: (value) {
+        if (value != null) onChanged(value);
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: SyncMode.values.map((mode) {
+          final isSelected = mode == selected;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _SyncModeCard(
+              mode: mode,
+              isSelected: isSelected,
+              onTap: () => onChanged(mode),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -59,7 +65,7 @@ class _SyncModeCard extends StatelessWidget {
         ),
       ),
       color: isSelected
-          ? colorScheme.primaryContainer.withOpacity(0.3)
+          ? colorScheme.primaryContainer.withValues(alpha: 0.3)
           : theme.cardTheme.color,
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
@@ -70,8 +76,6 @@ class _SyncModeCard extends StatelessWidget {
             children: [
               Radio<SyncMode>(
                 value: mode,
-                groupValue: isSelected ? mode : null,
-                onChanged: (_) => onTap(),
               ),
               SyncModeIcon(mode: mode, size: 28),
               const SizedBox(width: 12),
@@ -134,9 +138,9 @@ class _WarningBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.warning.withOpacity(0.15),
+        color: AppColors.warning.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: AppColors.warning.withOpacity(0.5)),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
       ),
       child: Text(
         label,

@@ -138,7 +138,7 @@ class _FirstProfileStepState extends ConsumerState<FirstProfileStep> {
               // Remote dropdown
               remotesAsync.when(
                 data: (remotes) => DropdownButtonFormField<String>(
-                  value: _selectedRemote,
+                  initialValue: _selectedRemote,
                   decoration: const InputDecoration(
                     labelText: 'Remote',
                   ),
@@ -153,7 +153,7 @@ class _FirstProfileStepState extends ConsumerState<FirstProfileStep> {
                   },
                 ),
                 loading: () => const LinearProgressIndicator(),
-                error: (_, __) => const Text('Error loading remotes'),
+                error: (_, _) => const Text('Error loading remotes'),
               ),
               const SizedBox(height: 16),
 
@@ -190,22 +190,26 @@ class _FirstProfileStepState extends ConsumerState<FirstProfileStep> {
                 style: theme.textTheme.titleSmall,
               ),
               const SizedBox(height: 8),
-              ...SyncMode.values.map(
-                (mode) => RadioListTile<SyncMode>(
-                  value: mode,
-                  groupValue: _selectedMode,
-                  title: Text(mode.label),
-                  subtitle: Text(
-                    mode.description,
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  secondary: Icon(_iconForMode(mode)),
-                  contentPadding: EdgeInsets.zero,
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedMode = value);
-                    }
-                  },
+              RadioGroup<SyncMode>(
+                groupValue: _selectedMode,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _selectedMode = value);
+                  }
+                },
+                child: Column(
+                  children: SyncMode.values.map(
+                    (mode) => RadioListTile<SyncMode>(
+                      value: mode,
+                      title: Text(mode.label),
+                      subtitle: Text(
+                        mode.description,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      secondary: Icon(_iconForMode(mode)),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ).toList(),
                 ),
               ),
 

@@ -57,7 +57,7 @@ class SyncProfile {
   static String _syncModeToJson(SyncMode mode) => mode.toJson();
 
   /// Reads localPaths from JSON, supporting both legacy `localPath` (String)
-  /// and current `localPaths` (List<String>) formats.
+  /// and current `localPaths` (`List<String>`) formats.
   static List<String> _localPathsFromJson(dynamic json) {
     if (json is List) {
       return json.cast<String>();

@@ -301,7 +301,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             // Remote dropdown
             remotesAsync.when(
               data: (remotes) => DropdownButtonFormField<String>(
-                value: _remoteName != null && remotes.contains(_remoteName)
+                initialValue: _remoteName != null && remotes.contains(_remoteName)
                     ? _remoteName
                     : null,
                 decoration: const InputDecoration(
@@ -410,7 +410,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             _SectionHeader(title: 'Schedule'),
             const SizedBox(height: 8),
             DropdownButtonFormField<int>(
-              value: _scheduleOptions.containsKey(_scheduleMinutes)
+              initialValue: _scheduleOptions.containsKey(_scheduleMinutes)
                   ? _scheduleMinutes
                   : 0,
               decoration: const InputDecoration(
