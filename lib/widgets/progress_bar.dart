@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/color_schemes.dart';
-
 class SyncProgressBar extends StatelessWidget {
   const SyncProgressBar({
     super.key,

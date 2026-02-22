@@ -37,7 +37,7 @@ class ProfilesNotifier extends AsyncNotifier<List<SyncProfile>> {
     String? error,
     DateTime? lastSyncTime,
   }) async {
-    final current = state.valueOrNull ?? [];
+    final current = state.value ?? [];
     final index = current.indexWhere((p) => p.id == profileId);
     if (index < 0) return;
     final updated = current[index].copyWith(
