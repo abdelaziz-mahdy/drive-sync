@@ -4,11 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/profiles_provider.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/skeleton_loader.dart';
+import '../profile_editor/profile_editor_screen.dart';
 import 'profile_card.dart';
 
 /// Dashboard screen showing a responsive grid of sync profile cards.
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
+
+  void _openNewProfile(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileEditorScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,9 +29,7 @@ class DashboardScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.add),
             tooltip: 'Add Profile',
-            onPressed: () {
-              // Placeholder: will navigate to profile editor in Task 6.4
-            },
+            onPressed: () => _openNewProfile(context),
           ),
         ],
       ),
@@ -37,9 +42,7 @@ class DashboardScreen extends ConsumerWidget {
               subtitle:
                   'Create your first sync profile to start backing up\nyour files to Google Drive.',
               actionLabel: 'Create your first sync profile',
-              onAction: () {
-                // Placeholder: will navigate to profile editor
-              },
+              onAction: () => _openNewProfile(context),
             );
           }
 
@@ -97,9 +100,7 @@ class DashboardScreen extends ConsumerWidget {
       floatingActionButton: profilesAsync.whenOrNull(
         data: (profiles) => profiles.isNotEmpty
             ? FloatingActionButton(
-                onPressed: () {
-                  // Placeholder: will navigate to profile editor in Task 6.4
-                },
+                onPressed: () => _openNewProfile(context),
                 tooltip: 'Add Profile',
                 child: const Icon(Icons.add),
               )
