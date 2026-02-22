@@ -3,10 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sync_profile.dart';
 import 'first_profile_step.dart';
-import 'rclone_check_step.dart';
 import 'remote_setup_step.dart';
 
-/// Three-step onboarding wizard for initial app setup.
+/// Two-step onboarding wizard for initial app setup.
+///
+/// Step 1: Configure cloud remotes via `rclone config`.
+/// Step 2: Create the first sync profile.
+///
+/// The rclone installation check happens on the splash screen before
+/// onboarding is reached, so we skip directly to remote configuration.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -17,14 +22,7 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   int _currentStep = 0;
 
-  bool _rcloneInstalled = false;
   bool _remotesConfigured = false;
-
-  void _onRcloneChecked(bool installed) {
-    setState(() {
-      _rcloneInstalled = installed;
-    });
-  }
 
   void _onRemotesFound(bool found) {
     setState(() {
@@ -37,7 +35,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _onContinue() {
-    if (_currentStep < 2) {
+    if (_currentStep < 1) {
       setState(() => _currentStep++);
     }
   }
@@ -63,23 +61,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               children: [
                 _StepDot(
                   index: 0,
-                  label: 'Rclone',
-                  isActive: _currentStep == 0,
-                  isCompleted: _rcloneInstalled,
-                ),
-                Expanded(child: _StepConnector(completed: _rcloneInstalled)),
-                _StepDot(
-                  index: 1,
                   label: 'Remotes',
-                  isActive: _currentStep == 1,
+                  isActive: _currentStep == 0,
                   isCompleted: _remotesConfigured,
                 ),
                 Expanded(
                     child: _StepConnector(completed: _remotesConfigured)),
                 _StepDot(
-                  index: 2,
+                  index: 1,
                   label: 'Profile',
-                  isActive: _currentStep == 2,
+                  isActive: _currentStep == 1,
                   isCompleted: false,
                 ),
               ],
@@ -109,7 +100,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   )
                 else
                   const SizedBox.shrink(),
-                if (_currentStep < 2)
+                if (_currentStep < 1)
                   FilledButton(
                     onPressed: _canContinue ? _onContinue : null,
                     child: const Text('Continue'),
@@ -125,8 +116,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool get _canContinue {
     switch (_currentStep) {
       case 0:
-        return _rcloneInstalled;
-      case 1:
         return _remotesConfigured;
       default:
         return false;
@@ -136,16 +125,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   Widget _buildStepContent() {
     switch (_currentStep) {
       case 0:
-        return RcloneCheckStep(
-          key: const ValueKey('rclone_check'),
-          onStatusChanged: _onRcloneChecked,
-        );
-      case 1:
         return RemoteSetupStep(
           key: const ValueKey('remote_setup'),
           onRemotesFound: _onRemotesFound,
         );
-      case 2:
+      case 1:
         return FirstProfileStep(
           key: const ValueKey('first_profile'),
           onProfileCreated: _onProfileCreated,
