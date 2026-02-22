@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sync_job.dart';
+import '../../models/sync_profile.dart';
+import '../../models/sync_queue_entry.dart';
 import '../../providers/profiles_provider.dart';
 import '../../providers/sync_queue_provider.dart';
 import '../../utils/format_utils.dart';
@@ -11,11 +13,19 @@ import '../../widgets/sync_mode_icon.dart';
 /// Full-width banner showing active sync progress on the dashboard.
 ///
 /// Slides in from the top when a sync is running and disappears when idle.
-class SyncBanner extends ConsumerWidget {
+/// The queued chip is tappable and expands to show the queue list.
+class SyncBanner extends ConsumerStatefulWidget {
   const SyncBanner({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SyncBanner> createState() => _SyncBannerState();
+}
+
+class _SyncBannerState extends ConsumerState<SyncBanner> {
+  bool _queueExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
     final queueState = ref.watch(syncQueueProvider);
 
     if (queueState.isIdle) return const SizedBox.shrink();
@@ -28,7 +38,7 @@ class SyncBanner extends ConsumerWidget {
         profiles.where((p) => p.id == activeJob.profileId).firstOrNull;
     final profileName = profile?.name ?? 'Unknown';
     final theme = Theme.of(context);
-    final queueCount = queueState.queue.length;
+    final pendingQueue = queueState.queue;
 
     return AnimatedSlide(
       offset: Offset.zero,
@@ -46,7 +56,7 @@ class SyncBanner extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header: profile name + sync mode + cancel
+                // Header: profile name + sync mode + queue chip + cancel
                 Row(
                   children: [
                     if (profile != null) ...[
@@ -64,18 +74,26 @@ class SyncBanner extends ConsumerWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (queueCount > 0)
+                    if (pendingQueue.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: Chip(
+                        child: ActionChip(
+                          avatar: Icon(
+                            _queueExpanded
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                            size: 16,
+                          ),
                           label: Text(
-                            '+$queueCount queued',
+                            '+${pendingQueue.length} queued',
                             style: theme.textTheme.labelSmall,
                           ),
                           visualDensity: VisualDensity.compact,
                           padding: EdgeInsets.zero,
                           materialTapTargetSize:
                               MaterialTapTargetSize.shrinkWrap,
+                          onPressed: () => setState(
+                              () => _queueExpanded = !_queueExpanded),
                         ),
                       ),
                     IconButton(
@@ -108,6 +126,18 @@ class SyncBanner extends ConsumerWidget {
                         (file) => _TransferringFileRow(file: file),
                       ),
                 ],
+
+                // Expandable queue list
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  child: _queueExpanded && pendingQueue.isNotEmpty
+                      ? _QueueList(
+                          queue: pendingQueue,
+                          profiles: profiles,
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ],
             ),
           ),
@@ -124,6 +154,83 @@ class SyncBanner extends ConsumerWidget {
       return '$pct - ${FormatUtils.formatSize(job.bytesTransferred)} / ${FormatUtils.formatSize(job.totalBytes)}';
     }
     return pct;
+  }
+}
+
+class _QueueList extends ConsumerWidget {
+  const _QueueList({required this.queue, required this.profiles});
+
+  final List<SyncQueueEntry> queue;
+  final List<SyncProfile> profiles;
+
+  String _profileName(String profileId) {
+    final match = profiles.where((p) => p.id == profileId);
+    return match.isNotEmpty ? match.first.name : profileId;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Divider(height: 1),
+          const SizedBox(height: 8),
+          Text(
+            'Up next',
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...queue.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundColor:
+                        theme.colorScheme.surfaceContainerHighest,
+                    child: Text(
+                      '${index + 1}',
+                      style: theme.textTheme.labelSmall,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _profileName(item.profileId),
+                      style: theme.textTheme.bodySmall,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 16),
+                    tooltip: 'Remove from queue',
+                    onPressed: () => ref
+                        .read(syncQueueProvider.notifier)
+                        .dequeue(item.profileId),
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 16,
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 }
 

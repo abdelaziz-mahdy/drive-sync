@@ -17,7 +17,7 @@ import 'settings/settings_screen.dart';
 /// The navigation items available in the sidebar.
 enum NavItem {
   dashboard(icon: Icons.dashboard, label: 'Dashboard'),
-  activity(icon: Icons.history, label: 'Activity'),
+  activity(icon: Icons.history, label: 'History'),
   settings(icon: Icons.settings, label: 'Settings');
 
   const NavItem({required this.icon, required this.label});

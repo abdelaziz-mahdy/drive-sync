@@ -1,0 +1,15 @@
+display_name: DriveSync
+package_name: drivesync
+maintainer:
+  name: Abdelaziz Mahdy
+priority: optional
+section: utils
+icon: assets/app_icon.png
+generic_name: File Sync Application
+categories:
+  - Utility
+keywords:
+  - sync
+  - drive
+  - backup
+startup_notify: true

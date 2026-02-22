@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../models/sync_job.dart';
 import '../../models/sync_profile.dart';
 import '../../providers/sync_executor_provider.dart';
 import '../../providers/sync_queue_provider.dart';
-import '../../widgets/progress_bar.dart';
 import '../../widgets/status_indicator.dart';
 import '../../widgets/sync_mode_icon.dart';
 import '../dry_run/dry_run_results_screen.dart';
@@ -61,7 +59,6 @@ class ProfileCard extends ConsumerWidget {
     final isRunning = queueState.isRunning(profile.id);
     final isQueued = queueState.isQueued(profile.id);
     final isActive = isRunning || isQueued;
-    final activeJob = isRunning ? queueState.activeJob : null;
     final status = StatusIndicator.fromProfile(profile);
     final theme = Theme.of(context);
 
@@ -125,96 +122,40 @@ class ProfileCard extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
-            // Progress / queued state (animated visibility)
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              child: isRunning && activeJob != null
-                  ? Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SyncProgressBar(
-                            progress: activeJob.progress,
-                            label: _buildProgressLabel(activeJob),
-                          ),
-                          if (activeJob.transferring.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            ...activeJob.transferring.take(3).map(
-                              (file) => Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.sync_outlined,
-                                      size: 12,
-                                      color: theme.colorScheme.onSurface
-                                          .withValues(alpha: 0.5),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        file.name,
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                          color: theme.colorScheme.onSurface
-                                              .withValues(alpha: 0.6),
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      FormatUtils.formatSize(file.size),
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.5),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '${file.percentage.toStringAsFixed(0)}%',
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    )
-                  : isQueued
-                      ? Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.schedule,
-                                size: 14,
-                                color: theme.colorScheme.tertiary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Queued (#${queueState.queuePositionOf(profile.id)})',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.tertiary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-            ),
+            // Sync/queued status chip
+            if (isRunning)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Chip(
+                  avatar: SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  label: const Text('Syncing'),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              )
+            else if (isQueued)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Chip(
+                  avatar: Icon(
+                    Icons.schedule,
+                    size: 14,
+                    color: theme.colorScheme.tertiary,
+                  ),
+                  label: Text('Queued (#${queueState.queuePositionOf(profile.id)})'),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
 
             // Last sync time
             Text(
@@ -257,31 +198,6 @@ class ProfileCard extends ConsumerWidget {
     );
   }
 
-  String _buildProgressLabel(SyncJob job) {
-    final parts = <String>[];
-
-    // Percentage
-    parts.add('${(job.progress * 100).toStringAsFixed(0)}%');
-
-    // File count
-    if (job.totalFiles > 0) {
-      parts.add('${job.filesTransferred}/${job.totalFiles} files');
-    } else if (job.filesTransferred > 0) {
-      parts.add('${job.filesTransferred} files');
-    }
-
-    // Speed
-    if (job.speed > 0) {
-      parts.add(FormatUtils.formatSpeed(job.speed));
-    }
-
-    // ETA
-    if (job.eta != null && job.eta! > 0 && !job.eta!.isInfinite) {
-      parts.add('${FormatUtils.formatEta(job.eta!.toInt())} left');
-    }
-
-    return parts.join(' - ');
-  }
 }
 
 class _PathRow extends StatelessWidget {
