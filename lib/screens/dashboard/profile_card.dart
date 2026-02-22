@@ -2,16 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sync_profile.dart';
+import '../../providers/sync_executor_provider.dart';
 import '../../providers/sync_jobs_provider.dart';
 import '../../widgets/progress_bar.dart';
 import '../../widgets/status_indicator.dart';
 import '../../widgets/sync_mode_icon.dart';
+import '../dry_run/dry_run_results_screen.dart';
+import '../profile_editor/profile_editor_screen.dart';
 
 /// Material card displaying a sync profile's status and actions.
 class ProfileCard extends ConsumerWidget {
   const ProfileCard({super.key, required this.profile});
 
   final SyncProfile profile;
+
+  void _startSync(BuildContext context, WidgetRef ref, {bool dryRun = false}) {
+    final executor = ref.read(syncExecutorProvider);
+    final jobsNotifier = ref.read(syncJobsProvider.notifier);
+
+    executor.executeSync(
+      profile,
+      dryRun: dryRun,
+      onProgress: (job) => jobsNotifier.updateJob(profile.id, job),
+      onDryRunComplete: (preview) {
+        if (context.mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => DryRunResultsScreen(preview: preview),
+            ),
+          );
+        }
+      },
+    );
+  }
+
+  void _editProfile(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfileEditorScreen(profile: profile),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -111,9 +142,7 @@ class ProfileCard extends ConsumerWidget {
                   child: FilledButton(
                     onPressed: isRunning
                         ? null
-                        : () {
-                            // Placeholder: sync action
-                          },
+                        : () => _startSync(context, ref),
                     child: const Text('Sync Now'),
                   ),
                 ),
@@ -121,18 +150,14 @@ class ProfileCard extends ConsumerWidget {
                 OutlinedButton(
                   onPressed: isRunning
                       ? null
-                      : () {
-                          // Placeholder: dry run action
-                        },
+                      : () => _startSync(context, ref, dryRun: true),
                   child: const Text('Dry Run'),
                 ),
                 const SizedBox(width: 4),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined, size: 20),
                   tooltip: 'Edit',
-                  onPressed: () {
-                    // Placeholder: edit action
-                  },
+                  onPressed: () => _editProfile(context),
                 ),
               ],
             ),
