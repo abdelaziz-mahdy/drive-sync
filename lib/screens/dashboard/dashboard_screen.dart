@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/profiles_provider.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/skeleton_loader.dart';
 import 'profile_card.dart';
 
@@ -30,9 +31,14 @@ class DashboardScreen extends ConsumerWidget {
       body: profilesAsync.when(
         data: (profiles) {
           if (profiles.isEmpty) {
-            return _EmptyState(
-              onCreateProfile: () {
-                // Placeholder: will navigate to profile editor in Task 6.4
+            return EmptyState(
+              icon: Icons.cloud_sync_outlined,
+              title: 'No Sync Profiles',
+              subtitle:
+                  'Create your first sync profile to start backing up\nyour files to Google Drive.',
+              actionLabel: 'Create your first sync profile',
+              onAction: () {
+                // Placeholder: will navigate to profile editor
               },
             );
           }
@@ -98,52 +104,6 @@ class DashboardScreen extends ConsumerWidget {
                 child: const Icon(Icons.add),
               )
             : null,
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onCreateProfile});
-
-  final VoidCallback onCreateProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.cloud_sync_outlined,
-              size: 80,
-              color: theme.colorScheme.primary.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No Sync Profiles',
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Create your first sync profile to start backing up\nyour files to Google Drive.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: onCreateProfile,
-              icon: const Icon(Icons.add),
-              label: const Text('Create your first sync profile'),
-            ),
-          ],
-        ),
       ),
     );
   }

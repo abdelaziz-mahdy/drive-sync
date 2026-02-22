@@ -6,6 +6,7 @@ import '../../models/sync_profile.dart';
 import '../../providers/profiles_provider.dart';
 import '../../providers/sync_history_provider.dart';
 import '../../providers/sync_jobs_provider.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/skeleton_loader.dart';
 import 'running_job_card.dart';
 import 'sync_history_tile.dart';
@@ -117,19 +118,12 @@ class ActivityScreen extends ConsumerWidget {
           historyAsync.when(
             data: (entries) {
               if (entries.isEmpty) {
-                return SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 32),
-                    child: Center(
-                      child: Text(
-                        'No sync history yet',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color:
-                              colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
+                return const SliverToBoxAdapter(
+                  child: EmptyState(
+                    icon: Icons.history,
+                    title: 'No sync history yet',
+                    subtitle: 'Completed syncs will appear here.',
+                    compact: true,
                   ),
                 );
               }

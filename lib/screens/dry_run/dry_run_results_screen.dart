@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/file_change.dart';
 import '../../models/sync_preview.dart';
 import '../../theme/color_schemes.dart';
+import '../../widgets/empty_state.dart';
 
 /// Displays the results of a dry-run sync preview, showing files to add,
 /// update, and delete with expandable sections.
@@ -42,36 +43,43 @@ class DryRunResultsScreen extends StatelessWidget {
           // Summary bar
           _SummaryBar(preview: preview),
 
-          // Expandable sections
+          // Expandable sections or empty state
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _FileChangeSection(
-                  title:
-                      'Files to Add (${preview.filesToAdd.length}) - ${formatSize(_sectionSize(preview.filesToAdd))}',
-                  icon: Icons.add_circle_outline,
-                  color: AppColors.success,
-                  files: preview.filesToAdd,
-                ),
-                const SizedBox(height: 8),
-                _FileChangeSection(
-                  title:
-                      'Files to Update (${preview.filesToUpdate.length}) - ${formatSize(_sectionSize(preview.filesToUpdate))}',
-                  icon: Icons.update,
-                  color: AppColors.syncing,
-                  files: preview.filesToUpdate,
-                ),
-                const SizedBox(height: 8),
-                _FileChangeSection(
-                  title:
-                      'Files to Delete (${preview.filesToDelete.length}) - ${formatSize(_sectionSize(preview.filesToDelete))}',
-                  icon: Icons.delete_outline,
-                  color: AppColors.error,
-                  files: preview.filesToDelete,
-                ),
-              ],
-            ),
+            child: preview.hasChanges
+                ? ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _FileChangeSection(
+                        title:
+                            'Files to Add (${preview.filesToAdd.length}) - ${formatSize(_sectionSize(preview.filesToAdd))}',
+                        icon: Icons.add_circle_outline,
+                        color: AppColors.success,
+                        files: preview.filesToAdd,
+                      ),
+                      const SizedBox(height: 8),
+                      _FileChangeSection(
+                        title:
+                            'Files to Update (${preview.filesToUpdate.length}) - ${formatSize(_sectionSize(preview.filesToUpdate))}',
+                        icon: Icons.update,
+                        color: AppColors.syncing,
+                        files: preview.filesToUpdate,
+                      ),
+                      const SizedBox(height: 8),
+                      _FileChangeSection(
+                        title:
+                            'Files to Delete (${preview.filesToDelete.length}) - ${formatSize(_sectionSize(preview.filesToDelete))}',
+                        icon: Icons.delete_outline,
+                        color: AppColors.error,
+                        files: preview.filesToDelete,
+                      ),
+                    ],
+                  )
+                : const EmptyState(
+                    icon: Icons.check_circle_outline,
+                    title: 'No changes detected',
+                    subtitle:
+                        'Everything is already in sync. There are no files to add, update, or delete.',
+                  ),
           ),
 
           // Bottom actions
