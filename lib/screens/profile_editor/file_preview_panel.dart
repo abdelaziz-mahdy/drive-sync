@@ -641,23 +641,6 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
     }
   }
 
-  void _toggleExtension(String ext) {
-    final activeTypes = widget.useIncludeMode
-        ? widget.includeTypes
-        : widget.excludeTypes;
-    List<String> updated;
-    if (activeTypes.contains(ext)) {
-      updated = activeTypes.where((e) => e != ext).toList();
-    } else {
-      updated = [...activeTypes, ext];
-    }
-    if (widget.useIncludeMode) {
-      widget.onIncludeTypesChanged(updated);
-    } else {
-      widget.onExcludeTypesChanged(updated);
-    }
-  }
-
   void _showCategoryDetail(
     BuildContext context,
     String categoryName,
@@ -670,11 +653,13 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
+        // Local copy so the sheet updates instantly.
+        final localTypes = List<String>.of(
+          widget.useIncludeMode ? widget.includeTypes : widget.excludeTypes,
+        );
+
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final activeTypes = widget.useIncludeMode
-                ? widget.includeTypes
-                : widget.excludeTypes;
             final sorted = [...exts]
               ..sort((a, b) => (extCounts[b] ?? 0).compareTo(extCounts[a] ?? 0));
 
@@ -692,7 +677,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                     spacing: 6,
                     runSpacing: 6,
                     children: sorted.map((ext) {
-                      final isActive = activeTypes.contains(ext);
+                      final isActive = localTypes.contains(ext);
                       return FilterChip(
                         label: Text(
                           '.$ext (${extCounts[ext] ?? 0})',
@@ -700,8 +685,18 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                         ),
                         selected: isActive,
                         onSelected: (_) {
-                          _toggleExtension(ext);
-                          setSheetState(() {});
+                          setSheetState(() {
+                            if (localTypes.contains(ext)) {
+                              localTypes.remove(ext);
+                            } else {
+                              localTypes.add(ext);
+                            }
+                          });
+                          if (widget.useIncludeMode) {
+                            widget.onIncludeTypesChanged(List.of(localTypes));
+                          } else {
+                            widget.onExcludeTypesChanged(List.of(localTypes));
+                          }
                         },
                         showCheckmark: true,
                         selectedColor: widget.useIncludeMode
@@ -732,14 +727,55 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
-        // Local copies so the sheet UI updates instantly on toggle.
+        // Local copies so the sheet UI updates instantly without waiting
+        // for the parent widget to rebuild.
         var localIncludeMode = widget.useIncludeMode;
+        var localIncludeTypes = List<String>.of(widget.includeTypes);
+        var localExcludeTypes = List<String>.of(widget.excludeTypes);
+
+        List<String> activeTypes() =>
+            localIncludeMode ? localIncludeTypes : localExcludeTypes;
+
+        void localToggleExt(String ext, StateSetter setSheetState) {
+          setSheetState(() {
+            final list = activeTypes();
+            if (list.contains(ext)) {
+              list.remove(ext);
+            } else {
+              list.add(ext);
+            }
+          });
+          // Propagate to parent.
+          if (localIncludeMode) {
+            widget.onIncludeTypesChanged(List.of(localIncludeTypes));
+          } else {
+            widget.onExcludeTypesChanged(List.of(localExcludeTypes));
+          }
+        }
+
+        void localToggleCategory(
+            String name, _CategoryInfo cat, StateSetter setSheetState) {
+          setSheetState(() {
+            final list = activeTypes();
+            final allActive = cat.exts.every((e) => list.contains(e));
+            if (allActive) {
+              list.removeWhere((e) => cat.exts.contains(e));
+            } else {
+              for (final e in cat.exts) {
+                if (!list.contains(e)) list.add(e);
+              }
+            }
+          });
+          if (localIncludeMode) {
+            widget.onIncludeTypesChanged(List.of(localIncludeTypes));
+          } else {
+            widget.onExcludeTypesChanged(List.of(localExcludeTypes));
+          }
+        }
 
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final activeTypes = localIncludeMode
-                ? widget.includeTypes
-                : widget.excludeTypes;
+            final types = activeTypes();
 
             return DraggableScrollableSheet(
               expand: false,
@@ -773,7 +809,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                           ),
                           const Spacer(),
                           Text(
-                            '${activeTypes.length} selected',
+                            '${types.length} selected',
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -820,18 +856,16 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                                 (a, b) => (extCounts[b] ?? 0)
                                     .compareTo(extCounts[a] ?? 0));
                             final allActive =
-                                cat.exts.every((e) => activeTypes.contains(e));
+                                cat.exts.every((e) => types.contains(e));
                             final someActive =
-                                cat.exts.any((e) => activeTypes.contains(e));
+                                cat.exts.any((e) => types.contains(e));
 
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 InkWell(
-                                  onTap: () {
-                                    _toggleCategory(entry.key, cat);
-                                    setSheetState(() {});
-                                  },
+                                  onTap: () => localToggleCategory(
+                                      entry.key, cat, setSheetState),
                                   child: Padding(
                                     padding:
                                         const EdgeInsets.symmetric(vertical: 8),
@@ -877,18 +911,15 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                                     spacing: 6,
                                     runSpacing: 4,
                                     children: sorted.map((ext) {
-                                      final isActive =
-                                          activeTypes.contains(ext);
+                                      final isActive = types.contains(ext);
                                       return FilterChip(
                                         label: Text(
                                           '.$ext (${extCounts[ext] ?? 0})',
                                           style: theme.textTheme.labelSmall,
                                         ),
                                         selected: isActive,
-                                        onSelected: (_) {
-                                          _toggleExtension(ext);
-                                          setSheetState(() {});
-                                        },
+                                        onSelected: (_) =>
+                                            localToggleExt(ext, setSheetState),
                                         visualDensity: VisualDensity.compact,
                                         materialTapTargetSize:
                                             MaterialTapTargetSize.shrinkWrap,
