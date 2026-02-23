@@ -140,23 +140,34 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     });
 
     try {
-      final rawFiles = await ref
-          .read(rcloneServiceProvider)
-          .listFiles(_remoteName!, _cloudFolderController.text.trim());
+      final rclone = ref.read(rcloneServiceProvider);
+      final allEntries = <PreviewFileEntry>[];
 
-      final entries = rawFiles.map((f) {
-        return PreviewFileEntry(
-          path: (f['Path'] as String?) ?? '',
-          name: (f['Name'] as String?) ?? '',
-          size: (f['Size'] as int?) ?? 0,
-          isDir: (f['IsDir'] as bool?) ?? false,
-        );
-      }).toList();
+      // List files from all configured local paths.
+      final validPaths =
+          _localPaths.where((p) => p.trim().isNotEmpty).toList();
+
+      for (final localPath in validPaths) {
+        final rawFiles = await rclone.listLocalFiles(localPath.trim());
+        final prefix = validPaths.length > 1
+            ? localPath.trim().split('/').last
+            : null;
+
+        for (final f in rawFiles) {
+          final path = (f['Path'] as String?) ?? '';
+          allEntries.add(PreviewFileEntry(
+            path: prefix != null ? '$prefix/$path' : path,
+            name: (f['Name'] as String?) ?? '',
+            size: (f['Size'] as int?) ?? 0,
+            isDir: (f['IsDir'] as bool?) ?? false,
+          ));
+        }
+      }
 
       if (!mounted) return;
       setState(() {
         _previewState = _previewState.copyWith(
-          allFiles: entries,
+          allFiles: allEntries,
           isLoadingFiles: false,
         );
       });

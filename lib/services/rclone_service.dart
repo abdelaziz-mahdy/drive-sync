@@ -130,6 +130,21 @@ class RcloneService {
     return list.cast<Map<String, dynamic>>();
   }
 
+  /// POST /operations/list - lists all files and folders at a local path.
+  Future<List<Map<String, dynamic>>> listLocalFiles(String localPath) async {
+    final response = await _dio.post(
+      '/operations/list',
+      data: {
+        'fs': localPath,
+        'remote': '',
+        'opt': {'recurse': true},
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    final list = data['list'] as List<dynamic>? ?? [];
+    return list.cast<Map<String, dynamic>>();
+  }
+
   /// Starts a sync operation using the profile's sync mode endpoint.
   /// Returns the job ID for tracking.
   Future<int> startSync(
