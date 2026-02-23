@@ -3,29 +3,39 @@ import 'package:flutter/material.dart';
 import '../../utils/format_utils.dart';
 import 'preview_state.dart';
 
+/// Filter mode for the file preview list.
+enum PreviewFilter { all, included, excluded }
+
 /// Displays a flat list of source files with include/exclude indicators.
 class FileTreeView extends StatelessWidget {
   const FileTreeView({
     super.key,
     required this.files,
     required this.includedPaths,
-    required this.showExcluded,
+    required this.filter,
   });
 
   final List<PreviewFileEntry> files;
   final Set<String> includedPaths;
-  final bool showExcluded;
+  final PreviewFilter filter;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // Filter files (skip dirs, optionally hide excluded).
+    // Filter files (skip dirs, apply filter mode).
     final displayFiles = files.where((f) {
       if (f.isDir) return false;
-      if (!showExcluded && !includedPaths.contains(f.path)) return false;
-      return true;
+      final isIncluded = includedPaths.contains(f.path);
+      switch (filter) {
+        case PreviewFilter.all:
+          return true;
+        case PreviewFilter.included:
+          return isIncluded;
+        case PreviewFilter.excluded:
+          return !isIncluded;
+      }
     }).toList();
 
     // Sort: included first, then excluded, alphabetical within each group.
@@ -37,9 +47,18 @@ class FileTreeView extends StatelessWidget {
     });
 
     if (displayFiles.isEmpty) {
+      final String message;
+      switch (filter) {
+        case PreviewFilter.all:
+          message = 'No files found';
+        case PreviewFilter.included:
+          message = 'No included files';
+        case PreviewFilter.excluded:
+          message = 'No excluded files';
+      }
       return Center(
         child: Text(
-          showExcluded ? 'No files found' : 'No included files',
+          message,
           style: theme.textTheme.bodySmall?.copyWith(
             color: colorScheme.onSurfaceVariant,
           ),

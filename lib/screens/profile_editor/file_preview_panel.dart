@@ -28,7 +28,7 @@ class FilePreviewPanel extends StatefulWidget {
 }
 
 class _FilePreviewPanelState extends State<FilePreviewPanel> {
-  bool _showExcluded = true;
+  PreviewFilter _filter = PreviewFilter.all;
 
   @override
   Widget build(BuildContext context) {
@@ -186,17 +186,35 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
           ),
         ),
 
-        // Show excluded toggle
+        // Filter tabs
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: [
-              Switch(
-                value: _showExcluded,
-                onChanged: (v) => setState(() => _showExcluded = v),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: SegmentedButton<PreviewFilter>(
+            segments: const [
+              ButtonSegment(
+                value: PreviewFilter.all,
+                label: Text('All'),
               ),
-              Text('Show excluded files', style: theme.textTheme.bodySmall),
+              ButtonSegment(
+                value: PreviewFilter.included,
+                label: Text('Included'),
+                icon: Icon(Icons.check_circle, size: 14),
+              ),
+              ButtonSegment(
+                value: PreviewFilter.excluded,
+                label: Text('Excluded'),
+                icon: Icon(Icons.cancel, size: 14),
+              ),
             ],
+            selected: {_filter},
+            onSelectionChanged: (v) => setState(() => _filter = v.first),
+            showSelectedIcon: false,
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              textStyle: WidgetStatePropertyAll(
+                theme.textTheme.labelSmall,
+              ),
+            ),
           ),
         ),
 
@@ -205,7 +223,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
           child: FileTreeView(
             files: ps.allFiles,
             includedPaths: ps.includedPaths,
-            showExcluded: _showExcluded,
+            filter: _filter,
           ),
         ),
       ],
