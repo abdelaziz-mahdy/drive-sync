@@ -732,9 +732,12 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) {
+        // Local copies so the sheet UI updates instantly on toggle.
+        var localIncludeMode = widget.useIncludeMode;
+
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
-            final activeTypes = widget.useIncludeMode
+            final activeTypes = localIncludeMode
                 ? widget.includeTypes
                 : widget.excludeTypes;
 
@@ -781,18 +784,18 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                       // Include/Exclude mode toggle
                       SwitchListTile(
                         title: Text(
-                          widget.useIncludeMode ? 'Include mode' : 'Exclude mode',
+                          localIncludeMode ? 'Include mode' : 'Exclude mode',
                           style: theme.textTheme.labelMedium?.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: widget.useIncludeMode
+                            color: localIncludeMode
                                 ? const Color(0xFF4CAF50)
                                 : colorScheme.error,
                           ),
                         ),
-                        value: widget.useIncludeMode,
+                        value: localIncludeMode,
                         onChanged: (v) {
                           widget.onIncludeModeChanged(v);
-                          setSheetState(() {});
+                          setSheetState(() => localIncludeMode = v);
                         },
                         dense: true,
                         contentPadding: EdgeInsets.zero,
@@ -800,7 +803,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        widget.useIncludeMode
+                        localIncludeMode
                             ? 'Only selected types will be synced'
                             : 'Selected types will be excluded from sync',
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -892,7 +895,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 2),
                                         showCheckmark: true,
-                                        selectedColor: widget.useIncludeMode
+                                        selectedColor: localIncludeMode
                                             ? const Color(0xFF4CAF50)
                                                 .withValues(alpha: 0.2)
                                             : colorScheme.errorContainer,
