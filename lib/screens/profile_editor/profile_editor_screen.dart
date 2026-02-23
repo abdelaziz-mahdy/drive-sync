@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:file_picker/file_picker.dart';
@@ -10,16 +11,24 @@ import '../../models/sync_mode.dart';
 import '../../models/sync_profile.dart';
 import '../../providers/profiles_provider.dart';
 import '../../providers/rclone_provider.dart';
+import '../../providers/sync_executor_provider.dart';
 import 'advanced_options.dart';
 import 'cloud_folder_browser.dart';
+import 'editor_section.dart';
+import 'file_preview_panel.dart';
 import 'file_type_chips.dart';
 import 'git_excludes_section.dart';
+import 'preview_state.dart';
 import 'sync_mode_selector.dart';
 
 /// Full-featured form for creating or editing a sync profile.
 ///
 /// Pass [profile] as null to create a new profile, or provide an existing
 /// profile to edit it.
+///
+/// Uses a three-zone responsive layout:
+/// - Wide (>900px): NavigationRail + Config section + Live file preview panel
+/// - Narrow (<=900px): Bottom navigation bar with section tabs + Preview tab
 class ProfileEditorScreen extends ConsumerStatefulWidget {
   const ProfileEditorScreen({super.key, this.profile});
 
@@ -54,6 +63,16 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   late bool _enabled;
 
   bool _saving = false;
+
+  // Section navigation
+  EditorSection _selectedSection = EditorSection.basic;
+
+  // For narrow layout: index 0-5 = sections, 6 = preview
+  int _narrowSelectedIndex = 0;
+
+  // Preview state
+  PreviewState _previewState = const PreviewState();
+  Timer? _previewDebounce;
 
   static const _scheduleOptions = <int, String>{
     0: 'Manual only',
@@ -90,8 +109,157 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   void dispose() {
     _nameController.dispose();
     _cloudFolderController.dispose();
+    _previewDebounce?.cancel();
     super.dispose();
   }
+
+  // ---------------------------------------------------------------------------
+  // Preview helpers
+  // ---------------------------------------------------------------------------
+
+  bool get _isPreviewConfigured =>
+      _remoteName != null &&
+      _remoteName!.isNotEmpty &&
+      _cloudFolderController.text.trim().isNotEmpty &&
+      _localPaths.any((p) => p.trim().isNotEmpty);
+
+  Future<void> _fetchSourceFiles() async {
+    if (!_isPreviewConfigured) return;
+
+    setState(() {
+      _previewState = _previewState.copyWith(
+        isLoadingFiles: true,
+        clearError: true,
+      );
+    });
+
+    try {
+      final rawFiles = await ref
+          .read(rcloneServiceProvider)
+          .listFiles(_remoteName!, _cloudFolderController.text.trim());
+
+      final entries = rawFiles.map((f) {
+        return PreviewFileEntry(
+          path: (f['Path'] as String?) ?? '',
+          name: (f['Name'] as String?) ?? '',
+          size: (f['Size'] as int?) ?? 0,
+          isDir: (f['IsDir'] as bool?) ?? false,
+        );
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _previewState = _previewState.copyWith(
+          allFiles: entries,
+          isLoadingFiles: false,
+        );
+      });
+
+      // Run a dry-run to determine which files are included/excluded
+      await _runDryRunPreview();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _previewState = _previewState.copyWith(
+          isLoadingFiles: false,
+          error: 'Failed to list files: $e',
+        );
+      });
+    }
+  }
+
+  Future<void> _runDryRunPreview() async {
+    if (!_isPreviewConfigured) return;
+
+    setState(() {
+      _previewState = _previewState.copyWith(isLoadingPreview: true);
+    });
+
+    try {
+      final tempProfile = SyncProfile(
+        id: widget.profile?.id ?? const Uuid().v4(),
+        name: _nameController.text.trim().isEmpty
+            ? 'Preview'
+            : _nameController.text.trim(),
+        remoteName: _remoteName ?? '',
+        cloudFolder: _cloudFolderController.text.trim(),
+        localPaths: _localPaths
+            .map((p) => p.trim())
+            .where((p) => p.isNotEmpty)
+            .toList(),
+        includeTypes: _includeTypes,
+        excludeTypes: _excludeTypes,
+        useIncludeMode: _useIncludeMode,
+        syncMode: _syncMode,
+        scheduleMinutes: _scheduleMinutes,
+        enabled: _enabled,
+        respectGitignore: _respectGitignore,
+        excludeGitDirs: _excludeGitDirs,
+        customExcludes: _customExcludes,
+        bandwidthLimit: _bandwidthLimit,
+        maxTransfers: _maxTransfers,
+        checkFirst: _checkFirst,
+        preserveSourceDir: _preserveSourceDir,
+      );
+
+      await ref.read(syncExecutorProvider).executeSync(
+            tempProfile,
+            dryRun: true,
+            onDryRunComplete: (preview) {
+              if (!mounted) return;
+              final included = <String>{};
+              for (final f in [
+                ...preview.filesToAdd,
+                ...preview.filesToUpdate,
+              ]) {
+                included.add(f.path);
+              }
+              setState(() {
+                _previewState = _previewState.copyWith(
+                  includedPaths: included,
+                  isLoadingPreview: false,
+                );
+              });
+            },
+          );
+
+      // If onDryRunComplete was not called (no transfers), clear loading.
+      if (mounted &&
+          _previewState.isLoadingPreview) {
+        setState(() {
+          _previewState = _previewState.copyWith(
+            includedPaths: const {},
+            isLoadingPreview: false,
+          );
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _previewState = _previewState.copyWith(
+          isLoadingPreview: false,
+          error: 'Dry-run failed: $e',
+        );
+      });
+    }
+  }
+
+  void _debouncedPreview() {
+    _previewDebounce?.cancel();
+    _previewDebounce = Timer(const Duration(seconds: 1), () {
+      _runDryRunPreview();
+    });
+  }
+
+  void _onFilterChanged() {
+    if (_isPreviewConfigured) {
+      _debouncedPreview();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Existing actions
+  // ---------------------------------------------------------------------------
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -180,6 +348,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     );
     if (result != null) {
       setState(() => _cloudFolderController.text = result);
+      _fetchSourceFiles();
     }
   }
 
@@ -187,6 +356,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     final result = await FilePicker.platform.getDirectoryPath();
     if (result != null) {
       setState(() => _localPaths[index] = result);
+      _fetchSourceFiles();
     }
   }
 
@@ -238,11 +408,389 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  // ---------------------------------------------------------------------------
+  // Section content builders
+  // ---------------------------------------------------------------------------
+
+  Widget _buildBasicSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: 'Basic Info'),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _nameController,
+          decoration: const InputDecoration(
+            labelText: 'Profile Name',
+            hintText: 'e.g., Work Documents',
+          ),
+          validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+        ),
+        const SizedBox(height: 16),
+        SwitchListTile(
+          title: const Text('Enabled'),
+          value: _enabled,
+          onChanged: (v) => setState(() => _enabled = v),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildModeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: 'Sync Mode'),
+        const SizedBox(height: 8),
+        SyncModeSelector(
+          selected: _syncMode,
+          onChanged: (mode) => setState(() => _syncMode = mode),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPathsSection() {
     final theme = Theme.of(context);
     final remotesAsync = ref.watch(remotesProvider);
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: 'Paths'),
+        const SizedBox(height: 8),
+        // Remote dropdown
+        remotesAsync.when(
+          data: (remotes) => DropdownButtonFormField<String>(
+            initialValue: _remoteName != null && remotes.contains(_remoteName)
+                ? _remoteName
+                : null,
+            decoration: const InputDecoration(
+              labelText: 'Remote',
+            ),
+            items: remotes.map((r) {
+              return DropdownMenuItem(value: r, child: Text(r));
+            }).toList(),
+            onChanged: (v) {
+              setState(() => _remoteName = v);
+              _fetchSourceFiles();
+            },
+            validator: (v) =>
+                (v == null || v.isEmpty) ? 'Remote is required' : null,
+          ),
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text(
+            'Failed to load remotes: $e',
+            style: TextStyle(color: theme.colorScheme.error),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Cloud folder path
+        TextFormField(
+          controller: _cloudFolderController,
+          decoration: InputDecoration(
+            labelText: 'Cloud Folder Path',
+            hintText: 'e.g., Documents/Work',
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.folder_open),
+              onPressed: _browseCloudFolder,
+              tooltip: 'Browse cloud folders',
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Local folder paths
+        ..._buildLocalPathFields(),
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _addLocalPath,
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add another local path'),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SwitchListTile(
+          title: const Text('Preserve source folder'),
+          subtitle: const Text('Keep directory structure at destination'),
+          value: _preserveSourceDir,
+          onChanged: (v) => setState(() => _preserveSourceDir = v),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFiltersSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: 'File Types'),
+        const SizedBox(height: 8),
+        FileTypeChips(
+          useIncludeMode: _useIncludeMode,
+          onIncludeModeChanged: (v) {
+            setState(() => _useIncludeMode = v);
+            _onFilterChanged();
+          },
+          includeTypes: _includeTypes,
+          excludeTypes: _excludeTypes,
+          onIncludeTypesChanged: (v) {
+            setState(() => _includeTypes = v);
+            _onFilterChanged();
+          },
+          onExcludeTypesChanged: (v) {
+            setState(() => _excludeTypes = v);
+            _onFilterChanged();
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExcludesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: 'Git Excludes'),
+        const SizedBox(height: 8),
+        GitExcludesSection(
+          respectGitignore: _respectGitignore,
+          excludeGitDirs: _excludeGitDirs,
+          customExcludes: _customExcludes,
+          onRespectGitignoreChanged: (v) {
+            setState(() => _respectGitignore = v);
+            _onFilterChanged();
+          },
+          onExcludeGitDirsChanged: (v) {
+            setState(() => _excludeGitDirs = v);
+            _onFilterChanged();
+          },
+          onCustomExcludesChanged: (v) {
+            setState(() => _customExcludes = v);
+            _onFilterChanged();
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdvancedSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: 'Advanced'),
+        const SizedBox(height: 8),
+        AdvancedOptions(
+          bandwidthLimit: _bandwidthLimit,
+          maxTransfers: _maxTransfers,
+          checkFirst: _checkFirst,
+          onBandwidthLimitChanged: (v) =>
+              setState(() => _bandwidthLimit = v),
+          onMaxTransfersChanged: (v) =>
+              setState(() => _maxTransfers = v),
+          onCheckFirstChanged: (v) =>
+              setState(() => _checkFirst = v),
+        ),
+        const SizedBox(height: 24),
+        _SectionHeader(title: 'Schedule'),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(
+          initialValue: _scheduleOptions.containsKey(_scheduleMinutes)
+              ? _scheduleMinutes
+              : 0,
+          decoration: const InputDecoration(
+            labelText: 'Schedule',
+          ),
+          items: _scheduleOptions.entries.map((e) {
+            return DropdownMenuItem(value: e.key, child: Text(e.value));
+          }).toList(),
+          onChanged: (v) => setState(() => _scheduleMinutes = v ?? 0),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionContent() {
+    final Widget content;
+    switch (_selectedSection) {
+      case EditorSection.basic:
+        content = _buildBasicSection();
+      case EditorSection.mode:
+        content = _buildModeSection();
+      case EditorSection.paths:
+        content = _buildPathsSection();
+      case EditorSection.filters:
+        content = _buildFiltersSection();
+      case EditorSection.excludes:
+        content = _buildExcludesSection();
+      case EditorSection.advanced:
+        content = _buildAdvancedSection();
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: content,
+    );
+  }
+
+  Widget _buildActionBar() {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outlineVariant,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (widget.isEditing)
+            TextButton(
+              onPressed: _delete,
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.error,
+              ),
+              child: const Text('Delete'),
+            ),
+          const Spacer(),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          const SizedBox(width: 12),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewPanel() {
+    return FilePreviewPanel(
+      state: _previewState,
+      isConfigured: _isPreviewConfigured,
+      onRefresh: _fetchSourceFiles,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Wide layout (>= 900px)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildWideLayout() {
+    return Row(
+      children: [
+        // Navigation rail
+        NavigationRail(
+          selectedIndex: _selectedSection.index,
+          onDestinationSelected: (index) {
+            setState(() {
+              _selectedSection = EditorSection.values[index];
+            });
+          },
+          labelType: NavigationRailLabelType.all,
+          destinations: EditorSection.values.map((section) {
+            return NavigationRailDestination(
+              icon: Icon(section.icon),
+              label: Text(section.label),
+            );
+          }).toList(),
+        ),
+        const VerticalDivider(width: 1),
+
+        // Center config section
+        Expanded(
+          child: Column(
+            children: [
+              Expanded(child: _buildSectionContent()),
+              _buildActionBar(),
+            ],
+          ),
+        ),
+
+        // Preview panel divider + panel
+        const VerticalDivider(width: 1),
+        SizedBox(
+          width: MediaQuery.of(context).size.width * 0.35,
+          child: _buildPreviewPanel(),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Narrow layout (< 900px)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildNarrowLayout() {
+    final bool showingPreview = _narrowSelectedIndex == 6;
+
+    // Sync narrow index to _selectedSection when not on preview
+    if (!showingPreview && _narrowSelectedIndex < EditorSection.values.length) {
+      _selectedSection = EditorSection.values[_narrowSelectedIndex];
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: showingPreview
+              ? _buildPreviewPanel()
+              : _buildSectionContent(),
+        ),
+        if (!showingPreview) _buildActionBar(),
+      ],
+    );
+  }
+
+  BottomNavigationBar _buildNarrowBottomNav() {
+    return BottomNavigationBar(
+      currentIndex: _narrowSelectedIndex,
+      onTap: (index) {
+        setState(() {
+          _narrowSelectedIndex = index;
+          if (index < EditorSection.values.length) {
+            _selectedSection = EditorSection.values[index];
+          }
+        });
+      },
+      type: BottomNavigationBarType.fixed,
+      selectedFontSize: 11,
+      unselectedFontSize: 10,
+      items: [
+        ...EditorSection.values.map((section) {
+          return BottomNavigationBarItem(
+            icon: Icon(section.icon),
+            label: section.label,
+          );
+        }),
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.preview),
+          label: 'Preview',
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
     return Shortcuts(
       shortcuts: <ShortcutActivator, Intent>{
         SingleActivator(
@@ -263,207 +811,31 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         child: Focus(
           autofocus: true,
           child: Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEditing ? 'Edit Profile' : 'New Profile'),
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            // Section 1: Basic Info
-            _SectionHeader(title: 'Basic Info'),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Profile Name',
-                hintText: 'e.g., Work Documents',
-              ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Name is required' : null,
+            appBar: AppBar(
+              title:
+                  Text(widget.isEditing ? 'Edit Profile' : 'New Profile'),
             ),
-            const SizedBox(height: 24),
-
-            // Section 2: Sync Mode
-            _SectionHeader(title: 'Sync Mode'),
-            const SizedBox(height: 8),
-            SyncModeSelector(
-              selected: _syncMode,
-              onChanged: (mode) => setState(() => _syncMode = mode),
-            ),
-            const SizedBox(height: 24),
-
-            // Section 3: Paths
-            _SectionHeader(title: 'Paths'),
-            const SizedBox(height: 8),
-
-            // Remote dropdown
-            remotesAsync.when(
-              data: (remotes) => DropdownButtonFormField<String>(
-                initialValue: _remoteName != null && remotes.contains(_remoteName)
-                    ? _remoteName
-                    : null,
-                decoration: const InputDecoration(
-                  labelText: 'Remote',
-                ),
-                items: remotes.map((r) {
-                  return DropdownMenuItem(value: r, child: Text(r));
-                }).toList(),
-                onChanged: (v) => setState(() => _remoteName = v),
-                validator: (v) =>
-                    (v == null || v.isEmpty) ? 'Remote is required' : null,
-              ),
-              loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text(
-                'Failed to load remotes: $e',
-                style: TextStyle(color: theme.colorScheme.error),
+            body: Form(
+              key: _formKey,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 900;
+                  if (isWide) {
+                    return _buildWideLayout();
+                  }
+                  return _buildNarrowLayout();
+                },
               ),
             ),
-            const SizedBox(height: 12),
-
-            // Cloud folder path
-            TextFormField(
-              controller: _cloudFolderController,
-              decoration: InputDecoration(
-                labelText: 'Cloud Folder Path',
-                hintText: 'e.g., Documents/Work',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.folder_open),
-                  onPressed: _browseCloudFolder,
-                  tooltip: 'Browse cloud folders',
-                ),
-              ),
+            bottomNavigationBar: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth >= 900) {
+                  return const SizedBox.shrink();
+                }
+                return _buildNarrowBottomNav();
+              },
             ),
-            const SizedBox(height: 12),
-
-            // Local folder paths
-            ..._buildLocalPathFields(),
-            const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _addLocalPath,
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Add another local path'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              title: const Text('Preserve source folder'),
-              subtitle: const Text('Keep directory structure at destination'),
-              value: _preserveSourceDir,
-              onChanged: (v) => setState(() => _preserveSourceDir = v),
-              contentPadding: EdgeInsets.zero,
-            ),
-            const SizedBox(height: 24),
-
-            // Section 4: File Types
-            _SectionHeader(title: 'File Types'),
-            const SizedBox(height: 8),
-            FileTypeChips(
-              useIncludeMode: _useIncludeMode,
-              onIncludeModeChanged: (v) =>
-                  setState(() => _useIncludeMode = v),
-              includeTypes: _includeTypes,
-              excludeTypes: _excludeTypes,
-              onIncludeTypesChanged: (v) =>
-                  setState(() => _includeTypes = v),
-              onExcludeTypesChanged: (v) =>
-                  setState(() => _excludeTypes = v),
-            ),
-            const SizedBox(height: 24),
-
-            // Section 5: Git Excludes
-            _SectionHeader(title: 'Git Excludes'),
-            const SizedBox(height: 8),
-            GitExcludesSection(
-              respectGitignore: _respectGitignore,
-              excludeGitDirs: _excludeGitDirs,
-              customExcludes: _customExcludes,
-              onRespectGitignoreChanged: (v) =>
-                  setState(() => _respectGitignore = v),
-              onExcludeGitDirsChanged: (v) =>
-                  setState(() => _excludeGitDirs = v),
-              onCustomExcludesChanged: (v) =>
-                  setState(() => _customExcludes = v),
-            ),
-            const SizedBox(height: 24),
-
-            // Section 6: Advanced
-            _SectionHeader(title: 'Advanced'),
-            const SizedBox(height: 8),
-            AdvancedOptions(
-              bandwidthLimit: _bandwidthLimit,
-              maxTransfers: _maxTransfers,
-              checkFirst: _checkFirst,
-              onBandwidthLimitChanged: (v) =>
-                  setState(() => _bandwidthLimit = v),
-              onMaxTransfersChanged: (v) =>
-                  setState(() => _maxTransfers = v),
-              onCheckFirstChanged: (v) =>
-                  setState(() => _checkFirst = v),
-            ),
-            const SizedBox(height: 24),
-
-            // Section 7: Schedule
-            _SectionHeader(title: 'Schedule'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<int>(
-              initialValue: _scheduleOptions.containsKey(_scheduleMinutes)
-                  ? _scheduleMinutes
-                  : 0,
-              decoration: const InputDecoration(
-                labelText: 'Schedule',
-              ),
-              items: _scheduleOptions.entries.map((e) {
-                return DropdownMenuItem(value: e.key, child: Text(e.value));
-              }).toList(),
-              onChanged: (v) => setState(() => _scheduleMinutes = v ?? 0),
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              title: const Text('Enabled'),
-              value: _enabled,
-              onChanged: (v) => setState(() => _enabled = v),
-              contentPadding: EdgeInsets.zero,
-            ),
-            const SizedBox(height: 32),
-
-            // Bottom actions
-            Row(
-              children: [
-                if (widget.isEditing)
-                  TextButton(
-                    onPressed: _delete,
-                    style: TextButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                    ),
-                    child: const Text('Delete'),
-                  ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                const SizedBox(width: 12),
-                FilledButton(
-                  onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Save'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ),
+          ),
         ),
       ),
     );
