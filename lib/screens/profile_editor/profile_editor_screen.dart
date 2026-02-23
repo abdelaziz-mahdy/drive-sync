@@ -102,6 +102,13 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     _preserveSourceDir = p?.preserveSourceDir ?? true;
     _scheduleMinutes = p?.scheduleMinutes ?? 0;
     _enabled = p?.enabled ?? true;
+
+    // Auto-fetch preview if config is already set (editing existing profile).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_isPreviewConfigured) {
+        _fetchSourceFiles();
+      }
+    });
   }
 
   @override
