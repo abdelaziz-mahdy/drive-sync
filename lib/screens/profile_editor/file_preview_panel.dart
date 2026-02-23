@@ -130,6 +130,21 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
 
     return Column(
       children: [
+        // Source label
+        if (ps.sourceLabel.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            color: colorScheme.primaryContainer,
+            child: Text(
+              ps.sourceLabel,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+
         // Summary bar
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

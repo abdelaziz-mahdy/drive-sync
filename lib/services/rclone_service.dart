@@ -1,10 +1,18 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:talker/talker.dart';
 import 'package:talker_dio_logger/talker_dio_logger.dart';
 
 import '../models/sync_profile.dart';
+
+/// Top-level function for parsing file list JSON in a background isolate.
+List<Map<String, dynamic>> _parseFileList(String raw) {
+  final data = jsonDecode(raw) as Map<String, dynamic>;
+  final list = data['list'] as List<dynamic>? ?? [];
+  return list.cast<Map<String, dynamic>>();
+}
 
 /// HTTP client that talks to the rclone rcd daemon on localhost via POST
 /// requests with JSON bodies. Uses Dio with Basic auth.
@@ -111,7 +119,7 @@ class RcloneService {
   }
 
   /// POST /operations/list - lists all files and folders at the given remote
-  /// path.
+  /// path. JSON parsing runs in a background isolate to avoid blocking the UI.
   Future<List<Map<String, dynamic>>> listFiles(
     String remote,
     String path,
@@ -124,13 +132,13 @@ class RcloneService {
         'remote': path,
         'opt': {'recurse': true},
       },
+      options: Options(responseType: ResponseType.plain),
     );
-    final data = response.data as Map<String, dynamic>;
-    final list = data['list'] as List<dynamic>? ?? [];
-    return list.cast<Map<String, dynamic>>();
+    return compute(_parseFileList, response.data as String);
   }
 
   /// POST /operations/list - lists all files and folders at a local path.
+  /// JSON parsing runs in a background isolate to avoid blocking the UI.
   Future<List<Map<String, dynamic>>> listLocalFiles(String localPath) async {
     final response = await _dio.post(
       '/operations/list',
@@ -139,10 +147,9 @@ class RcloneService {
         'remote': '',
         'opt': {'recurse': true},
       },
+      options: Options(responseType: ResponseType.plain),
     );
-    final data = response.data as Map<String, dynamic>;
-    final list = data['list'] as List<dynamic>? ?? [];
-    return list.cast<Map<String, dynamic>>();
+    return compute(_parseFileList, response.data as String);
   }
 
   /// Starts a sync operation using the profile's sync mode endpoint.

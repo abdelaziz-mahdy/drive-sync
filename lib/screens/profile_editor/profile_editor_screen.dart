@@ -129,6 +129,16 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       _cloudFolderController.text.trim().isNotEmpty &&
       _localPaths.any((p) => p.trim().isNotEmpty);
 
+  /// Whether the current sync mode reads from local (source = local).
+  bool get _isSourceLocal =>
+      _syncMode == SyncMode.backup || _syncMode == SyncMode.bisync;
+
+  /// Whether the current sync mode reads from cloud (source = cloud).
+  bool get _isSourceCloud =>
+      _syncMode == SyncMode.mirror ||
+      _syncMode == SyncMode.download ||
+      _syncMode == SyncMode.bisync;
+
   Future<void> _fetchSourceFiles() async {
     if (!_isPreviewConfigured) return;
 
@@ -143,15 +153,34 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       final rclone = ref.read(rcloneServiceProvider);
       final allEntries = <PreviewFileEntry>[];
 
-      // List files from all configured local paths.
-      final validPaths =
-          _localPaths.where((p) => p.trim().isNotEmpty).toList();
+      // Fetch local files when source includes local.
+      if (_isSourceLocal) {
+        final validPaths =
+            _localPaths.where((p) => p.trim().isNotEmpty).toList();
 
-      for (final localPath in validPaths) {
-        final rawFiles = await rclone.listLocalFiles(localPath.trim());
-        final prefix = validPaths.length > 1
-            ? localPath.trim().split('/').last
-            : null;
+        for (final localPath in validPaths) {
+          final rawFiles = await rclone.listLocalFiles(localPath.trim());
+          final prefix = validPaths.length > 1
+              ? localPath.trim().split('/').last
+              : null;
+
+          for (final f in rawFiles) {
+            final path = (f['Path'] as String?) ?? '';
+            allEntries.add(PreviewFileEntry(
+              path: prefix != null ? '$prefix/$path' : path,
+              name: (f['Name'] as String?) ?? '',
+              size: (f['Size'] as int?) ?? 0,
+              isDir: (f['IsDir'] as bool?) ?? false,
+            ));
+          }
+        }
+      }
+
+      // Fetch cloud files when source includes cloud.
+      if (_isSourceCloud) {
+        final cloudFolder = _cloudFolderController.text.trim();
+        final rawFiles = await rclone.listFiles(_remoteName!, cloudFolder);
+        final prefix = _isSourceLocal ? 'cloud' : null;
 
         for (final f in rawFiles) {
           final path = (f['Path'] as String?) ?? '';
@@ -164,11 +193,22 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         }
       }
 
+      // Build source label.
+      final String sourceLabel;
+      if (_isSourceLocal && _isSourceCloud) {
+        sourceLabel = 'Local + Cloud files';
+      } else if (_isSourceLocal) {
+        sourceLabel = 'Local files';
+      } else {
+        sourceLabel = 'Cloud files';
+      }
+
       if (!mounted) return;
       setState(() {
         _previewState = _previewState.copyWith(
           allFiles: allEntries,
           isLoadingFiles: false,
+          sourceLabel: sourceLabel,
         );
       });
 
@@ -555,7 +595,10 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         const SizedBox(height: 8),
         SyncModeSelector(
           selected: _syncMode,
-          onChanged: (mode) => setState(() => _syncMode = mode),
+          onChanged: (mode) {
+            setState(() => _syncMode = mode);
+            _fetchSourceFiles();
+          },
         ),
       ],
     );

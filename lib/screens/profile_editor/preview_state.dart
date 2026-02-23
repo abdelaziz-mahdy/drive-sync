@@ -25,12 +25,16 @@ class PreviewState {
   final bool isLoadingPreview;
   final String? error;
 
+  /// Label describing the source of files (e.g. "Local files" or "Cloud files").
+  final String sourceLabel;
+
   const PreviewState({
     this.allFiles = const [],
     this.includedPaths = const {},
     this.isLoadingFiles = false,
     this.isLoadingPreview = false,
     this.error,
+    this.sourceLabel = '',
   });
 
   bool get isReady => allFiles.isNotEmpty && !isLoadingFiles;
@@ -52,6 +56,7 @@ class PreviewState {
     bool? isLoadingPreview,
     String? error,
     bool clearError = false,
+    String? sourceLabel,
   }) {
     return PreviewState(
       allFiles: allFiles ?? this.allFiles,
@@ -59,6 +64,7 @@ class PreviewState {
       isLoadingFiles: isLoadingFiles ?? this.isLoadingFiles,
       isLoadingPreview: isLoadingPreview ?? this.isLoadingPreview,
       error: clearError ? null : (error ?? this.error),
+      sourceLabel: sourceLabel ?? this.sourceLabel,
     );
   }
 }
