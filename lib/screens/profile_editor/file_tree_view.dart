@@ -6,6 +6,9 @@ import 'preview_state.dart';
 /// Filter mode for the file preview list.
 enum PreviewFilter { all, included, excluded }
 
+/// Sort mode for the file list.
+enum FileSortMode { sizeDesc, sizeAsc, nameAsc, nameDesc }
+
 /// Displays files grouped by their inclusion/exclusion reason.
 class FileTreeView extends StatelessWidget {
   const FileTreeView({
@@ -14,12 +17,14 @@ class FileTreeView extends StatelessWidget {
     required this.includedPaths,
     required this.filter,
     this.fileReasons = const {},
+    this.sortMode = FileSortMode.sizeDesc,
   });
 
   final List<PreviewFileEntry> files;
   final Set<String> includedPaths;
   final PreviewFilter filter;
   final Map<String, String> fileReasons;
+  final FileSortMode sortMode;
 
   @override
   Widget build(BuildContext context) {
@@ -75,9 +80,18 @@ class FileTreeView extends StatelessWidget {
         return a.compareTo(b);
       });
 
-    // Sort files within each group alphabetically.
+    // Sort files within each group.
     for (final list in grouped.values) {
-      list.sort((a, b) => a.path.compareTo(b.path));
+      switch (sortMode) {
+        case FileSortMode.sizeDesc:
+          list.sort((a, b) => b.size.compareTo(a.size));
+        case FileSortMode.sizeAsc:
+          list.sort((a, b) => a.size.compareTo(b.size));
+        case FileSortMode.nameAsc:
+          list.sort((a, b) => a.path.compareTo(b.path));
+        case FileSortMode.nameDesc:
+          list.sort((a, b) => b.path.compareTo(a.path));
+      }
     }
 
     // Build flat list of items (headers + files), capped at 200 files total.

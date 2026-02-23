@@ -61,6 +61,7 @@ class FilePreviewPanel extends StatefulWidget {
 
 class _FilePreviewPanelState extends State<FilePreviewPanel> {
   PreviewFilter _filter = PreviewFilter.all;
+  FileSortMode _sortMode = FileSortMode.sizeDesc;
 
   @override
   Widget build(BuildContext context) {
@@ -222,35 +223,66 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
         if (ps.allFiles.isNotEmpty)
           _buildRecommendations(theme, colorScheme),
 
-        // Filter tabs
+        // Filter tabs + sort
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: SegmentedButton<PreviewFilter>(
-            segments: const [
-              ButtonSegment(
-                value: PreviewFilter.all,
-                label: Text('All'),
+          child: Row(
+            children: [
+              Expanded(
+                child: SegmentedButton<PreviewFilter>(
+                  segments: const [
+                    ButtonSegment(
+                      value: PreviewFilter.all,
+                      label: Text('All'),
+                    ),
+                    ButtonSegment(
+                      value: PreviewFilter.included,
+                      label: Text('Included'),
+                      icon: Icon(Icons.check_circle, size: 14),
+                    ),
+                    ButtonSegment(
+                      value: PreviewFilter.excluded,
+                      label: Text('Excluded'),
+                      icon: Icon(Icons.cancel, size: 14),
+                    ),
+                  ],
+                  selected: {_filter},
+                  onSelectionChanged: (v) => setState(() => _filter = v.first),
+                  showSelectedIcon: false,
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: WidgetStatePropertyAll(
+                      theme.textTheme.labelSmall,
+                    ),
+                  ),
+                ),
               ),
-              ButtonSegment(
-                value: PreviewFilter.included,
-                label: Text('Included'),
-                icon: Icon(Icons.check_circle, size: 14),
-              ),
-              ButtonSegment(
-                value: PreviewFilter.excluded,
-                label: Text('Excluded'),
-                icon: Icon(Icons.cancel, size: 14),
+              const SizedBox(width: 4),
+              PopupMenuButton<FileSortMode>(
+                icon: const Icon(Icons.sort, size: 18),
+                tooltip: 'Sort files',
+                initialValue: _sortMode,
+                onSelected: (v) => setState(() => _sortMode = v),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: FileSortMode.sizeDesc,
+                    child: Text('Size (largest first)'),
+                  ),
+                  PopupMenuItem(
+                    value: FileSortMode.sizeAsc,
+                    child: Text('Size (smallest first)'),
+                  ),
+                  PopupMenuItem(
+                    value: FileSortMode.nameAsc,
+                    child: Text('Name (A-Z)'),
+                  ),
+                  PopupMenuItem(
+                    value: FileSortMode.nameDesc,
+                    child: Text('Name (Z-A)'),
+                  ),
+                ],
               ),
             ],
-            selected: {_filter},
-            onSelectionChanged: (v) => setState(() => _filter = v.first),
-            showSelectedIcon: false,
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              textStyle: WidgetStatePropertyAll(
-                theme.textTheme.labelSmall,
-              ),
-            ),
           ),
         ),
 
@@ -265,6 +297,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
             includedPaths: ps.includedPaths,
             filter: _filter,
             fileReasons: ps.fileReasons,
+            sortMode: _sortMode,
           ),
         ),
       ],
@@ -487,22 +520,13 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                 ),
               ),
               const Spacer(),
-              InkWell(
-                onTap: () =>
-                    widget.onIncludeModeChanged(!widget.useIncludeMode),
-                borderRadius: BorderRadius.circular(4),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  child: Text(
-                    widget.useIncludeMode ? 'Include mode' : 'Exclude mode',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: widget.useIncludeMode
-                          ? const Color(0xFF4CAF50)
-                          : colorScheme.error,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+              Text(
+                widget.useIncludeMode ? 'Include mode' : 'Exclude mode',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: widget.useIncludeMode
+                      ? const Color(0xFF4CAF50)
+                      : colorScheme.error,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -753,10 +777,49 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 8),
+                      // Include/Exclude mode toggle
+                      Row(
+                        children: [
+                          Text(
+                            'Mode:',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment(
+                                value: false,
+                                label: Text('Exclude'),
+                                icon: Icon(Icons.cancel, size: 14),
+                              ),
+                              ButtonSegment(
+                                value: true,
+                                label: Text('Include'),
+                                icon: Icon(Icons.check_circle, size: 14),
+                              ),
+                            ],
+                            selected: {widget.useIncludeMode},
+                            onSelectionChanged: (v) {
+                              widget.onIncludeModeChanged(v.first);
+                              setSheetState(() {});
+                            },
+                            showSelectedIcon: false,
+                            style: ButtonStyle(
+                              visualDensity: VisualDensity.compact,
+                              textStyle: WidgetStatePropertyAll(
+                                theme.textTheme.labelSmall,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         widget.useIncludeMode
-                            ? 'Selected types will be included in sync'
+                            ? 'Only selected types will be synced'
                             : 'Selected types will be excluded from sync',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
