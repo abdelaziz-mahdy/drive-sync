@@ -223,7 +223,8 @@ void main() {
   });
 
   group('ProfileEditorScreen', () {
-    testWidgets('renders create mode with all sections', (tester) async {
+    testWidgets('renders create mode with NavigationRail sections',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(1200, 1600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -245,11 +246,16 @@ void main() {
       // Title for create mode
       expect(find.text('New Profile'), findsOneWidget);
 
-      // Section headers
-      expect(find.text('Basic Info'), findsOneWidget);
-      expect(find.text('Sync Mode'), findsOneWidget);
+      // NavigationRail section labels should be visible
+      expect(find.text('Basic'), findsOneWidget);
+      expect(find.text('Mode'), findsOneWidget);
       expect(find.text('Paths'), findsOneWidget);
-      expect(find.text('File Types'), findsOneWidget);
+      expect(find.text('Filters'), findsOneWidget);
+      expect(find.text('Excludes'), findsOneWidget);
+      expect(find.text('Advanced'), findsOneWidget);
+
+      // Default section (Basic) content should show
+      expect(find.text('Basic Info'), findsOneWidget);
     });
 
     testWidgets('validates name is required', (tester) async {

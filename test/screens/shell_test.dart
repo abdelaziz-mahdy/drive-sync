@@ -87,7 +87,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Dashboard'), findsWidgets);
-      expect(find.text('Activity'), findsOneWidget);
+      expect(find.text('History'), findsOneWidget);
       expect(find.text('Settings'), findsOneWidget);
       expect(find.text('DriveSync'), findsOneWidget);
       expect(find.text('PROFILES'), findsOneWidget);
@@ -170,7 +170,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
-      await tester.tap(find.text('Activity'));
+      await tester.tap(find.text('History'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
