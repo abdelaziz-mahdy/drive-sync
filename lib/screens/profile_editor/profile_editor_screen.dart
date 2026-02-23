@@ -769,6 +769,36 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
       state: _previewState,
       isConfigured: _isPreviewConfigured,
       onRefresh: _fetchSourceFiles,
+      useIncludeMode: _useIncludeMode,
+      includeTypes: _includeTypes,
+      excludeTypes: _excludeTypes,
+      onIncludeTypesChanged: (types) {
+        setState(() => _includeTypes = types);
+        _onFilterChanged();
+      },
+      onExcludeTypesChanged: (types) {
+        setState(() => _excludeTypes = types);
+        _onFilterChanged();
+      },
+      onIncludeModeChanged: (mode) {
+        setState(() => _useIncludeMode = mode);
+        _onFilterChanged();
+      },
+      excludeGitDirs: _excludeGitDirs,
+      onExcludeGitDirsChanged: (v) {
+        setState(() => _excludeGitDirs = v);
+        _onFilterChanged();
+      },
+      respectGitignore: _respectGitignore,
+      onRespectGitignoreChanged: (v) {
+        setState(() => _respectGitignore = v);
+        _onFilterChanged();
+      },
+      customExcludes: _customExcludes,
+      onCustomExcludesChanged: (v) {
+        setState(() => _customExcludes = v);
+        _onFilterChanged();
+      },
     );
   }
 
