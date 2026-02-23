@@ -53,6 +53,10 @@ class PreviewState {
       .where((f) => !f.isDir && includedPaths.contains(f.path))
       .fold(0, (sum, f) => sum + f.size);
 
+  int get excludedSize => allFiles
+      .where((f) => !f.isDir && !includedPaths.contains(f.path))
+      .fold(0, (sum, f) => sum + f.size);
+
   PreviewState copyWith({
     List<PreviewFileEntry>? allFiles,
     Set<String>? includedPaths,

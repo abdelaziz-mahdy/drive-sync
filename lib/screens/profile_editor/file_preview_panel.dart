@@ -196,7 +196,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                   color: colorScheme.onSurface.withValues(alpha: 0.4)),
               const SizedBox(width: 4),
               Text(
-                '${ps.excludedCount} excluded',
+                '${ps.excludedCount} excluded (${FormatUtils.formatSize(ps.excludedSize)})',
                 style: theme.textTheme.labelMedium?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
