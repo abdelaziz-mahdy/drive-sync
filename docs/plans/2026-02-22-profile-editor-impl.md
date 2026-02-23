@@ -13,6 +13,7 @@
 ### Task 1: EditorSection Enum and Section Content Builder
 
 **Files:**
+
 - Create: `lib/screens/profile_editor/editor_section.dart`
 
 **Step 1: Create the EditorSection enum**
@@ -49,6 +50,7 @@ git commit -m "feat(editor): add EditorSection enum for navigation sections"
 ### Task 2: File Preview Data Model
 
 **Files:**
+
 - Create: `lib/screens/profile_editor/preview_state.dart`
 
 **Step 1: Create preview state classes**
@@ -134,6 +136,7 @@ git commit -m "feat(editor): add PreviewState model for live file preview"
 ### Task 3: File Tree View Widget
 
 **Files:**
+
 - Create: `lib/screens/profile_editor/file_tree_view.dart`
 
 **Step 1: Create the file tree widget**
@@ -259,6 +262,7 @@ git commit -m "feat(editor): add FileTreeView widget for preview panel"
 ### Task 4: File Preview Panel
 
 **Files:**
+
 - Create: `lib/screens/profile_editor/file_preview_panel.dart`
 
 **Step 1: Create the preview panel widget**
@@ -451,9 +455,11 @@ git commit -m "feat(editor): add FilePreviewPanel with summary bar and tree view
 ### Task 5: Rewrite ProfileEditorScreen with NavigationRail Layout
 
 **Files:**
+
 - Modify: `lib/screens/profile_editor/profile_editor_screen.dart`
 
 This is the biggest task. The screen becomes a ConsumerStatefulWidget with:
+
 - NavigationRail on wide screens, bottom tabs on narrow
 - Section content in the center
 - FilePreviewPanel on the right (wide) or as a tab (narrow)
@@ -465,6 +471,7 @@ This is the biggest task. The screen becomes a ConsumerStatefulWidget with:
 The new screen layout uses `LayoutBuilder` to switch between wide (NavigationRail + 3 columns) and narrow (bottom TabBar) modes. All existing form state management stays the same. The key addition is preview state management with debounced dry-run.
 
 Key structure:
+
 - `_selectedSection` tracks the current EditorSection
 - `_previewState` holds the PreviewState
 - `_fetchSourceFiles()` calls `RcloneService.listFiles()` once when paths are set
@@ -494,6 +501,7 @@ git commit -m "feat(editor): rewrite with NavigationRail layout and live preview
 ### Task 6: Update Tests
 
 **Files:**
+
 - Modify: `test/screens/profile_editor_test.dart` (if exists)
 - Create: `test/screens/profile_editor_test.dart` (if not)
 
@@ -504,6 +512,7 @@ Run: `find test -name "*profile_editor*" -o -name "*profile*test*" | head`
 **Step 2: Write widget tests**
 
 Test the key behaviors:
+
 - Editor renders NavigationRail destinations for all 6 sections
 - Tapping a navigation destination switches the content
 - Save button triggers validation
