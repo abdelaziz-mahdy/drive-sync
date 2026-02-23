@@ -449,22 +449,24 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
   // Quick filter bar - compact category chips + manage button
   // ---------------------------------------------------------------------------
 
-  /// Collects extension counts from files.
-  Map<String, int> _collectExtCounts() {
-    final extCounts = <String, int>{};
+  /// Collects extension counts and total sizes from files.
+  ({Map<String, int> counts, Map<String, int> sizes}) _collectExtStats() {
+    final counts = <String, int>{};
+    final sizes = <String, int>{};
     for (final f in widget.state.allFiles) {
       if (f.isDir) continue;
       final lastDot = f.path.lastIndexOf('.');
       if (lastDot < 0 || lastDot == f.path.length - 1) continue;
       final ext = f.path.substring(lastDot + 1).toLowerCase();
-      extCounts[ext] = (extCounts[ext] ?? 0) + 1;
+      counts[ext] = (counts[ext] ?? 0) + 1;
+      sizes[ext] = (sizes[ext] ?? 0) + f.size;
     }
-    return extCounts;
+    return (counts: counts, sizes: sizes);
   }
 
   Widget _buildQuickFilterBar(ThemeData theme, ColorScheme colorScheme) {
-    final extCounts = _collectExtCounts();
-    if (extCounts.isEmpty) return const SizedBox.shrink();
+    final (:counts, :sizes) = _collectExtStats();
+    if (counts.isEmpty) return const SizedBox.shrink();
 
     final activeTypes = widget.useIncludeMode
         ? widget.includeTypes
@@ -473,27 +475,31 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
     // Build category chips showing only categories that have files present.
     final presentCategories = <String, _CategoryInfo>{};
     for (final entry in _extensionCategories.entries) {
-      final matchingExts = entry.value.where((e) => extCounts.containsKey(e)).toList();
+      final matchingExts = entry.value.where((e) => counts.containsKey(e)).toList();
       if (matchingExts.isEmpty) continue;
-      final totalFiles = matchingExts.fold<int>(0, (sum, e) => sum + extCounts[e]!);
+      final totalFiles = matchingExts.fold<int>(0, (sum, e) => sum + counts[e]!);
+      final totalSize = matchingExts.fold<int>(0, (sum, e) => sum + sizes[e]!);
       final activeCount = matchingExts.where((e) => activeTypes.contains(e)).length;
       presentCategories[entry.key] = _CategoryInfo(
         exts: matchingExts,
         totalFiles: totalFiles,
+        totalSize: totalSize,
         activeCount: activeCount,
       );
     }
 
     // Collect uncategorized extensions.
     final allCategorized = _extensionCategories.values.expand((e) => e).toSet();
-    final uncategorized = extCounts.keys.where((e) => !allCategorized.contains(e)).toList()
-      ..sort((a, b) => extCounts[b]!.compareTo(extCounts[a]!));
+    final uncategorized = counts.keys.where((e) => !allCategorized.contains(e)).toList()
+      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
     if (uncategorized.isNotEmpty) {
-      final totalFiles = uncategorized.fold<int>(0, (sum, e) => sum + extCounts[e]!);
+      final totalFiles = uncategorized.fold<int>(0, (sum, e) => sum + counts[e]!);
+      final totalSize = uncategorized.fold<int>(0, (sum, e) => sum + sizes[e]!);
       final activeCount = uncategorized.where((e) => activeTypes.contains(e)).length;
       presentCategories['Other'] = _CategoryInfo(
         exts: uncategorized,
         totalFiles: totalFiles,
+        totalSize: totalSize,
         activeCount: activeCount,
       );
     }
@@ -542,7 +548,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                 final someActive = cat.activeCount > 0;
                 return GestureDetector(
                   onLongPress: () => _showCategoryDetail(
-                    context, entry.key, cat.exts, extCounts,
+                    context, entry.key, cat.exts, counts, sizes,
                   ),
                   child: FilterChip(
                     label: Text(
@@ -570,7 +576,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                 avatar: const Icon(Icons.tune, size: 14),
                 label: Text('Manage', style: theme.textTheme.labelSmall),
                 onPressed: () => _showFullExtensionPicker(
-                  context, extCounts, presentCategories,
+                  context, counts, sizes, presentCategories,
                 ),
                 visualDensity: VisualDensity.compact,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -646,6 +652,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
     String categoryName,
     List<String> exts,
     Map<String, int> extCounts,
+    Map<String, int> extSizes,
   ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
@@ -661,7 +668,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             final sorted = [...exts]
-              ..sort((a, b) => (extCounts[b] ?? 0).compareTo(extCounts[a] ?? 0));
+              ..sort((a, b) => (extSizes[b] ?? 0).compareTo(extSizes[a] ?? 0));
 
             return Padding(
               padding: const EdgeInsets.all(16),
@@ -680,7 +687,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                       final isActive = localTypes.contains(ext);
                       return FilterChip(
                         label: Text(
-                          '.$ext (${extCounts[ext] ?? 0})',
+                          '.$ext (${extCounts[ext] ?? 0}, ${FormatUtils.formatSize(extSizes[ext] ?? 0)})',
                           style: theme.textTheme.bodySmall,
                         ),
                         selected: isActive,
@@ -718,6 +725,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
   void _showFullExtensionPicker(
     BuildContext context,
     Map<String, int> extCounts,
+    Map<String, int> extSizes,
     Map<String, _CategoryInfo> presentCategories,
   ) {
     final theme = Theme.of(context);
@@ -853,8 +861,8 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                           children: presentCategories.entries.map((entry) {
                             final cat = entry.value;
                             final sorted = [...cat.exts]..sort(
-                                (a, b) => (extCounts[b] ?? 0)
-                                    .compareTo(extCounts[a] ?? 0));
+                                (a, b) => (extSizes[b] ?? 0)
+                                    .compareTo(extSizes[a] ?? 0));
                             final allActive =
                                 cat.exts.every((e) => types.contains(e));
                             final someActive =
@@ -893,7 +901,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          '${cat.totalFiles} files',
+                                          '${cat.totalFiles} files (${FormatUtils.formatSize(cat.totalSize)})',
                                           style: theme.textTheme.labelSmall
                                               ?.copyWith(
                                             color:
@@ -914,7 +922,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                                       final isActive = types.contains(ext);
                                       return FilterChip(
                                         label: Text(
-                                          '.$ext (${extCounts[ext] ?? 0})',
+                                          '.$ext (${extCounts[ext] ?? 0}, ${FormatUtils.formatSize(extSizes[ext] ?? 0)})',
                                           style: theme.textTheme.labelSmall,
                                         ),
                                         selected: isActive,
@@ -969,11 +977,13 @@ class _Recommendation {
 class _CategoryInfo {
   final List<String> exts;
   final int totalFiles;
+  final int totalSize;
   final int activeCount;
 
   const _CategoryInfo({
     required this.exts,
     required this.totalFiles,
+    required this.totalSize,
     required this.activeCount,
   });
 }
