@@ -779,42 +779,24 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                       ),
                       const SizedBox(height: 8),
                       // Include/Exclude mode toggle
-                      Row(
-                        children: [
-                          Text(
-                            'Mode:',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                      SwitchListTile(
+                        title: Text(
+                          widget.useIncludeMode ? 'Include mode' : 'Exclude mode',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: widget.useIncludeMode
+                                ? const Color(0xFF4CAF50)
+                                : colorScheme.error,
                           ),
-                          const SizedBox(width: 8),
-                          SegmentedButton<bool>(
-                            segments: const [
-                              ButtonSegment(
-                                value: false,
-                                label: Text('Exclude'),
-                                icon: Icon(Icons.cancel, size: 14),
-                              ),
-                              ButtonSegment(
-                                value: true,
-                                label: Text('Include'),
-                                icon: Icon(Icons.check_circle, size: 14),
-                              ),
-                            ],
-                            selected: {widget.useIncludeMode},
-                            onSelectionChanged: (v) {
-                              widget.onIncludeModeChanged(v.first);
-                              setSheetState(() {});
-                            },
-                            showSelectedIcon: false,
-                            style: ButtonStyle(
-                              visualDensity: VisualDensity.compact,
-                              textStyle: WidgetStatePropertyAll(
-                                theme.textTheme.labelSmall,
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
+                        value: widget.useIncludeMode,
+                        onChanged: (v) {
+                          widget.onIncludeModeChanged(v);
+                          setSheetState(() {});
+                        },
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
                       ),
                       const SizedBox(height: 4),
                       Text(
