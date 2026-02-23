@@ -122,6 +122,7 @@ class RcloneService {
       data: {
         'fs': fs,
         'remote': path,
+        'opt': {'recurse': true},
       },
     );
     final data = response.data as Map<String, dynamic>;
