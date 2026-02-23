@@ -11,7 +11,6 @@ import '../../models/sync_mode.dart';
 import '../../models/sync_profile.dart';
 import '../../providers/profiles_provider.dart';
 import '../../providers/rclone_provider.dart';
-import '../../providers/sync_executor_provider.dart';
 import 'advanced_options.dart';
 import 'cloud_folder_browser.dart';
 import 'editor_section.dart';
@@ -65,7 +64,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   bool _saving = false;
 
   // Section navigation
-  EditorSection _selectedSection = EditorSection.basic;
+  EditorSection _selectedSection = EditorSection.general;
 
   // For narrow layout: index 0-5 = sections, 6 = preview
   int _narrowSelectedIndex = 0;
@@ -155,8 +154,8 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         );
       });
 
-      // Run a dry-run to determine which files are included/excluded
-      await _runDryRunPreview();
+      // Apply filter rules to determine which files are included/excluded.
+      _applyFilters();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -168,86 +167,113 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     }
   }
 
-  Future<void> _runDryRunPreview() async {
-    if (!_isPreviewConfigured) return;
+  /// Apply filter rules client-side to determine which files are included.
+  ///
+  /// This mirrors the logic in SyncProfile.buildFilterPayload() but runs
+  /// locally against the file list instead of needing a dry-run sync.
+  void _applyFilters() {
+    if (_previewState.allFiles.isEmpty) return;
 
     setState(() {
       _previewState = _previewState.copyWith(isLoadingPreview: true);
     });
 
-    try {
-      final tempProfile = SyncProfile(
-        id: widget.profile?.id ?? const Uuid().v4(),
-        name: _nameController.text.trim().isEmpty
-            ? 'Preview'
-            : _nameController.text.trim(),
-        remoteName: _remoteName ?? '',
-        cloudFolder: _cloudFolderController.text.trim(),
-        localPaths: _localPaths
-            .map((p) => p.trim())
-            .where((p) => p.isNotEmpty)
-            .toList(),
-        includeTypes: _includeTypes,
-        excludeTypes: _excludeTypes,
-        useIncludeMode: _useIncludeMode,
-        syncMode: _syncMode,
-        scheduleMinutes: _scheduleMinutes,
-        enabled: _enabled,
-        respectGitignore: _respectGitignore,
-        excludeGitDirs: _excludeGitDirs,
-        customExcludes: _customExcludes,
-        bandwidthLimit: _bandwidthLimit,
-        maxTransfers: _maxTransfers,
-        checkFirst: _checkFirst,
-        preserveSourceDir: _preserveSourceDir,
-      );
+    final included = <String>{};
 
-      await ref.read(syncExecutorProvider).executeSync(
-            tempProfile,
-            dryRun: true,
-            onDryRunComplete: (preview) {
-              if (!mounted) return;
-              final included = <String>{};
-              for (final f in [
-                ...preview.filesToAdd,
-                ...preview.filesToUpdate,
-              ]) {
-                included.add(f.path);
-              }
-              setState(() {
-                _previewState = _previewState.copyWith(
-                  includedPaths: included,
-                  isLoadingPreview: false,
-                );
-              });
-            },
-          );
+    for (final file in _previewState.allFiles) {
+      if (file.isDir) continue;
 
-      // If onDryRunComplete was not called (no transfers), clear loading.
-      if (mounted &&
-          _previewState.isLoadingPreview) {
-        setState(() {
-          _previewState = _previewState.copyWith(
-            includedPaths: const {},
-            isLoadingPreview: false,
-          );
-        });
+      final path = file.path;
+      final ext = _extensionOf(path);
+
+      // Check include/exclude type filters.
+      if (_useIncludeMode && _includeTypes.isNotEmpty) {
+        if (!_includeTypes.contains(ext)) continue;
       }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _previewState = _previewState.copyWith(
-          isLoadingPreview: false,
-          error: 'Dry-run failed: $e',
-        );
-      });
+      if (!_useIncludeMode && _excludeTypes.isNotEmpty) {
+        if (_excludeTypes.contains(ext)) continue;
+      }
+
+      // Check .git exclusion.
+      if (_excludeGitDirs && _matchesGitDir(path)) continue;
+
+      // Check custom excludes.
+      if (_matchesCustomExclude(path)) continue;
+
+      included.add(path);
     }
+
+    setState(() {
+      _previewState = _previewState.copyWith(
+        includedPaths: included,
+        isLoadingPreview: false,
+      );
+    });
+  }
+
+  /// Extract file extension without dot, lowercased.
+  String _extensionOf(String path) {
+    final lastDot = path.lastIndexOf('.');
+    if (lastDot < 0 || lastDot == path.length - 1) return '';
+    return path.substring(lastDot + 1).toLowerCase();
+  }
+
+  /// Check if a path is under a .git directory.
+  bool _matchesGitDir(String path) {
+    return path == '.git' ||
+        path.startsWith('.git/') ||
+        path.contains('/.git/') ||
+        path.contains('/.git');
+  }
+
+  /// Check if a path matches any custom exclude pattern.
+  bool _matchesCustomExclude(String path) {
+    for (final pattern in _customExcludes) {
+      if (pattern.isEmpty) continue;
+      // Simple glob matching: support * and ** patterns.
+      final trimmed = pattern.trim();
+      if (trimmed.contains('*')) {
+        final regex = _globToRegex(trimmed);
+        if (regex.hasMatch(path)) return true;
+      } else {
+        // Plain string match: check if path contains the pattern.
+        if (path.contains(trimmed)) return true;
+      }
+    }
+    return false;
+  }
+
+  /// Convert a simple glob pattern to a regex.
+  RegExp _globToRegex(String glob) {
+    final buffer = StringBuffer('^');
+    for (var i = 0; i < glob.length; i++) {
+      final c = glob[i];
+      if (c == '*') {
+        if (i + 1 < glob.length && glob[i + 1] == '*') {
+          buffer.write('.*');
+          i++; // skip next *
+          if (i + 1 < glob.length && glob[i + 1] == '/') {
+            i++; // skip /
+          }
+        } else {
+          buffer.write('[^/]*');
+        }
+      } else if (c == '?') {
+        buffer.write('[^/]');
+      } else if (RegExp(r'[.+^${}()|[\]\\]').hasMatch(c)) {
+        buffer.write('\\$c');
+      } else {
+        buffer.write(c);
+      }
+    }
+    buffer.write(r'$');
+    return RegExp(buffer.toString());
   }
 
   void _debouncedPreview() {
     _previewDebounce?.cancel();
     _previewDebounce = Timer(const Duration(seconds: 1), () {
-      _runDryRunPreview();
+      _applyFilters();
     });
   }
 
@@ -412,11 +438,14 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   // Section content builders
   // ---------------------------------------------------------------------------
 
-  Widget _buildBasicSection() {
+  Widget _buildGeneralSection() {
+    final theme = Theme.of(context);
+    final remotesAsync = ref.watch(remotesProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(title: 'Basic Info'),
+        _SectionHeader(title: 'Profile'),
         const SizedBox(height: 8),
         TextFormField(
           controller: _nameController,
@@ -434,31 +463,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
           onChanged: (v) => setState(() => _enabled = v),
           contentPadding: EdgeInsets.zero,
         ),
-      ],
-    );
-  }
-
-  Widget _buildModeSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionHeader(title: 'Sync Mode'),
-        const SizedBox(height: 8),
-        SyncModeSelector(
-          selected: _syncMode,
-          onChanged: (mode) => setState(() => _syncMode = mode),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPathsSection() {
-    final theme = Theme.of(context);
-    final remotesAsync = ref.watch(remotesProvider);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+        const SizedBox(height: 24),
         _SectionHeader(title: 'Paths'),
         const SizedBox(height: 8),
         // Remote dropdown
@@ -524,6 +529,20 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     );
   }
 
+  Widget _buildModeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: 'Sync Mode'),
+        const SizedBox(height: 8),
+        SyncModeSelector(
+          selected: _syncMode,
+          onChanged: (mode) => setState(() => _syncMode = mode),
+        ),
+      ],
+    );
+  }
+
   Widget _buildFiltersSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -547,15 +566,8 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
             _onFilterChanged();
           },
         ),
-      ],
-    );
-  }
-
-  Widget _buildExcludesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionHeader(title: 'Git Excludes'),
+        const SizedBox(height: 24),
+        _SectionHeader(title: 'Excludes'),
         const SizedBox(height: 8),
         GitExcludesSection(
           respectGitignore: _respectGitignore,
@@ -617,16 +629,12 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   Widget _buildSectionContent() {
     final Widget content;
     switch (_selectedSection) {
-      case EditorSection.basic:
-        content = _buildBasicSection();
+      case EditorSection.general:
+        content = _buildGeneralSection();
       case EditorSection.mode:
         content = _buildModeSection();
-      case EditorSection.paths:
-        content = _buildPathsSection();
       case EditorSection.filters:
         content = _buildFiltersSection();
-      case EditorSection.excludes:
-        content = _buildExcludesSection();
       case EditorSection.advanced:
         content = _buildAdvancedSection();
     }
@@ -737,7 +745,8 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildNarrowLayout() {
-    final bool showingPreview = _narrowSelectedIndex == 6;
+    final bool showingPreview =
+        _narrowSelectedIndex == EditorSection.values.length;
 
     // Sync narrow index to _selectedSection when not on preview
     if (!showingPreview && _narrowSelectedIndex < EditorSection.values.length) {

@@ -97,13 +97,35 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
 
     if (ps.allFiles.isEmpty) {
       return Center(
-        child: Text(
-          'No files found at this location',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.folder_open, size: 48,
+                  color: colorScheme.onSurfaceVariant),
+              const SizedBox(height: 12),
+              Text(
+                'No files found at this location',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: widget.onRefresh,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Refresh'),
+              ),
+            ],
           ),
         ),
       );
+    }
+
+    // Files exist but none included by dry-run (all excluded by filters)
+    if (ps.includedPaths.isEmpty && !ps.isLoadingPreview) {
+      // Still show the full panel with summary showing 0 included
     }
 
     return Column(

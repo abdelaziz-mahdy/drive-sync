@@ -246,16 +246,14 @@ void main() {
       // Title for create mode
       expect(find.text('New Profile'), findsOneWidget);
 
-      // NavigationRail section labels should be visible
-      expect(find.text('Basic'), findsOneWidget);
+      // NavigationRail section labels should be visible (4 consolidated sections)
+      expect(find.text('General'), findsOneWidget);
       expect(find.text('Mode'), findsOneWidget);
-      expect(find.text('Paths'), findsOneWidget);
       expect(find.text('Filters'), findsOneWidget);
-      expect(find.text('Excludes'), findsOneWidget);
       expect(find.text('Advanced'), findsOneWidget);
 
-      // Default section (Basic) content should show
-      expect(find.text('Basic Info'), findsOneWidget);
+      // Default section (General) content should show profile name field
+      expect(find.text('Profile'), findsOneWidget);
     });
 
     testWidgets('validates name is required', (tester) async {
