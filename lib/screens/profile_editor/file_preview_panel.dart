@@ -224,6 +224,7 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
             files: ps.allFiles,
             includedPaths: ps.includedPaths,
             filter: _filter,
+            fileReasons: ps.fileReasons,
           ),
         ),
       ],

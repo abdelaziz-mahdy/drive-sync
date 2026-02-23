@@ -237,6 +237,7 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
     });
 
     final included = <String>{};
+    final reasons = <String, String>{};
 
     for (final file in _previewState.allFiles) {
       if (file.isDir) continue;
@@ -246,25 +247,42 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
 
       // Check include/exclude type filters.
       if (_useIncludeMode && _includeTypes.isNotEmpty) {
-        if (!_includeTypes.contains(ext)) continue;
+        if (!_includeTypes.contains(ext)) {
+          reasons[path] = ext.isEmpty
+              ? 'Excluded: no file extension (include mode)'
+              : 'Excluded: .$ext not in included types';
+          continue;
+        }
       }
       if (!_useIncludeMode && _excludeTypes.isNotEmpty) {
-        if (_excludeTypes.contains(ext)) continue;
+        if (_excludeTypes.contains(ext)) {
+          reasons[path] = 'Excluded: .$ext in excluded types';
+          continue;
+        }
       }
 
       // Check .git exclusion.
-      if (_excludeGitDirs && _matchesGitDir(path)) continue;
+      if (_excludeGitDirs && _matchesGitDir(path)) {
+        reasons[path] = 'Excluded: .git directory';
+        continue;
+      }
 
       // Check custom excludes.
-      if (_matchesCustomExclude(path)) continue;
+      final matchedPattern = _findMatchingCustomExclude(path);
+      if (matchedPattern != null) {
+        reasons[path] = 'Excluded: pattern "$matchedPattern"';
+        continue;
+      }
 
       included.add(path);
+      reasons[path] = 'Included';
     }
 
     setState(() {
       _previewState = _previewState.copyWith(
         includedPaths: included,
         isLoadingPreview: false,
+        fileReasons: reasons,
       );
     });
   }
@@ -284,21 +302,19 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
         path.contains('/.git');
   }
 
-  /// Check if a path matches any custom exclude pattern.
-  bool _matchesCustomExclude(String path) {
+  /// Returns the first matching custom exclude pattern, or null if none match.
+  String? _findMatchingCustomExclude(String path) {
     for (final pattern in _customExcludes) {
       if (pattern.isEmpty) continue;
-      // Simple glob matching: support * and ** patterns.
       final trimmed = pattern.trim();
       if (trimmed.contains('*')) {
         final regex = _globToRegex(trimmed);
-        if (regex.hasMatch(path)) return true;
+        if (regex.hasMatch(path)) return trimmed;
       } else {
-        // Plain string match: check if path contains the pattern.
-        if (path.contains(trimmed)) return true;
+        if (path.contains(trimmed)) return trimmed;
       }
     }
-    return false;
+    return null;
   }
 
   /// Convert a simple glob pattern to a regex.

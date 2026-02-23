@@ -28,6 +28,9 @@ class PreviewState {
   /// Label describing the source of files (e.g. "Local files" or "Cloud files").
   final String sourceLabel;
 
+  /// Maps each file path to the reason it was included or excluded.
+  final Map<String, String> fileReasons;
+
   const PreviewState({
     this.allFiles = const [],
     this.includedPaths = const {},
@@ -35,6 +38,7 @@ class PreviewState {
     this.isLoadingPreview = false,
     this.error,
     this.sourceLabel = '',
+    this.fileReasons = const {},
   });
 
   bool get isReady => allFiles.isNotEmpty && !isLoadingFiles;
@@ -57,6 +61,7 @@ class PreviewState {
     String? error,
     bool clearError = false,
     String? sourceLabel,
+    Map<String, String>? fileReasons,
   }) {
     return PreviewState(
       allFiles: allFiles ?? this.allFiles,
@@ -65,6 +70,7 @@ class PreviewState {
       isLoadingPreview: isLoadingPreview ?? this.isLoadingPreview,
       error: clearError ? null : (error ?? this.error),
       sourceLabel: sourceLabel ?? this.sourceLabel,
+      fileReasons: fileReasons ?? this.fileReasons,
     );
   }
 }
