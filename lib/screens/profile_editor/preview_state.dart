@@ -16,6 +16,34 @@ class PreviewFileEntry {
   });
 }
 
+/// Pre-computed summary stats to avoid re-iterating all files on every build.
+@immutable
+class PreviewStats {
+  final int includedCount;
+  final int excludedCount;
+  final int includedSize;
+  final int excludedSize;
+
+  /// Extension counts (ext → file count) across all files.
+  final Map<String, int> extCounts;
+
+  /// Extension sizes (ext → total bytes) across all files.
+  final Map<String, int> extSizes;
+
+  /// Pattern IDs detected in the file listing (for recommendation generation).
+  final Set<String> matchedRecPatternIds;
+
+  const PreviewStats({
+    this.includedCount = 0,
+    this.excludedCount = 0,
+    this.includedSize = 0,
+    this.excludedSize = 0,
+    this.extCounts = const {},
+    this.extSizes = const {},
+    this.matchedRecPatternIds = const {},
+  });
+}
+
 /// State for the live preview panel.
 @immutable
 class PreviewState {
@@ -31,6 +59,9 @@ class PreviewState {
   /// Maps each file path to the reason it was included or excluded.
   final Map<String, String> fileReasons;
 
+  /// Pre-computed stats to avoid O(n) on every build.
+  final PreviewStats stats;
+
   const PreviewState({
     this.allFiles = const [],
     this.includedPaths = const {},
@@ -39,23 +70,16 @@ class PreviewState {
     this.error,
     this.sourceLabel = '',
     this.fileReasons = const {},
+    this.stats = const PreviewStats(),
   });
 
   bool get isReady => allFiles.isNotEmpty && !isLoadingFiles;
 
-  int get includedCount =>
-      allFiles.where((f) => !f.isDir && includedPaths.contains(f.path)).length;
-
-  int get excludedCount =>
-      allFiles.where((f) => !f.isDir && !includedPaths.contains(f.path)).length;
-
-  int get includedSize => allFiles
-      .where((f) => !f.isDir && includedPaths.contains(f.path))
-      .fold(0, (sum, f) => sum + f.size);
-
-  int get excludedSize => allFiles
-      .where((f) => !f.isDir && !includedPaths.contains(f.path))
-      .fold(0, (sum, f) => sum + f.size);
+  // Convenience accessors from pre-computed stats.
+  int get includedCount => stats.includedCount;
+  int get excludedCount => stats.excludedCount;
+  int get includedSize => stats.includedSize;
+  int get excludedSize => stats.excludedSize;
 
   PreviewState copyWith({
     List<PreviewFileEntry>? allFiles,
@@ -66,6 +90,7 @@ class PreviewState {
     bool clearError = false,
     String? sourceLabel,
     Map<String, String>? fileReasons,
+    PreviewStats? stats,
   }) {
     return PreviewState(
       allFiles: allFiles ?? this.allFiles,
@@ -75,6 +100,7 @@ class PreviewState {
       error: clearError ? null : (error ?? this.error),
       sourceLabel: sourceLabel ?? this.sourceLabel,
       fileReasons: fileReasons ?? this.fileReasons,
+      stats: stats ?? this.stats,
     );
   }
 }

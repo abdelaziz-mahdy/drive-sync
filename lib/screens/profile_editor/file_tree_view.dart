@@ -10,6 +10,10 @@ enum PreviewFilter { all, included, excluded }
 enum FileSortMode { sizeDesc, sizeAsc, nameAsc, nameDesc }
 
 /// Displays files grouped by their inclusion/exclusion reason.
+///
+/// Uses a pre-built flat item list when available, falling back to
+/// building it on-demand. The pre-built list avoids re-iterating and
+/// re-sorting hundreds of thousands of files inside [build].
 class FileTreeView extends StatelessWidget {
   const FileTreeView({
     super.key,
@@ -31,21 +35,9 @@ class FileTreeView extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    // Filter files (skip dirs, apply filter mode).
-    final displayFiles = files.where((f) {
-      if (f.isDir) return false;
-      final isIncluded = includedPaths.contains(f.path);
-      switch (filter) {
-        case PreviewFilter.all:
-          return true;
-        case PreviewFilter.included:
-          return isIncluded;
-        case PreviewFilter.excluded:
-          return !isIncluded;
-      }
-    }).toList();
+    final items = _buildItems();
 
-    if (displayFiles.isEmpty) {
+    if (items.isEmpty) {
       final String message;
       switch (filter) {
         case PreviewFilter.all:
@@ -63,65 +55,6 @@ class FileTreeView extends StatelessWidget {
           ),
         ),
       );
-    }
-
-    // Group files by reason.
-    final grouped = <String, List<PreviewFileEntry>>{};
-    for (final file in displayFiles) {
-      final reason = fileReasons[file.path] ?? 'Included';
-      grouped.putIfAbsent(reason, () => []).add(file);
-    }
-
-    // Sort groups: "Included" first, then alphabetical.
-    final sortedReasons = grouped.keys.toList()
-      ..sort((a, b) {
-        if (a == 'Included') return -1;
-        if (b == 'Included') return 1;
-        return a.compareTo(b);
-      });
-
-    // Sort files within each group.
-    for (final list in grouped.values) {
-      switch (sortMode) {
-        case FileSortMode.sizeDesc:
-          list.sort((a, b) => b.size.compareTo(a.size));
-        case FileSortMode.sizeAsc:
-          list.sort((a, b) => a.size.compareTo(b.size));
-        case FileSortMode.nameAsc:
-          list.sort((a, b) => a.path.compareTo(b.path));
-        case FileSortMode.nameDesc:
-          list.sort((a, b) => b.path.compareTo(a.path));
-      }
-    }
-
-    // Build flat list of items (headers + files), capped at 200 files total.
-    final items = <_ListItem>[];
-    var totalFiles = 0;
-    const maxFiles = 200;
-
-    for (final reason in sortedReasons) {
-      final groupFiles = grouped[reason]!;
-      final isIncluded = reason == 'Included';
-      final remaining = maxFiles - totalFiles;
-      if (remaining <= 0) break;
-
-      final cappedFiles =
-          groupFiles.length > remaining ? groupFiles.sublist(0, remaining) : groupFiles;
-
-      items.add(_ListItem.header(
-        reason: reason,
-        count: groupFiles.length,
-        isIncluded: isIncluded,
-      ));
-      for (final file in cappedFiles) {
-        items.add(_ListItem.file(file: file, isIncluded: isIncluded));
-      }
-      if (cappedFiles.length < groupFiles.length) {
-        items.add(_ListItem.overflow(
-          count: groupFiles.length - cappedFiles.length,
-        ));
-      }
-      totalFiles += cappedFiles.length;
     }
 
     return ListView.builder(
@@ -218,6 +151,136 @@ class FileTreeView extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Builds the flat list of display items, capped at [_maxFiles] files.
+  ///
+  /// Instead of filtering/grouping all files, we iterate once and only
+  /// collect up to [_maxFiles] per reason group (keeping running totals
+  /// for the header counts). This is O(n) but touches each file only to
+  /// check filter + bucket it, not to sort or materialise large lists.
+  List<_ListItem> _buildItems() {
+    const maxFiles = 200;
+
+    // First pass: bucket files by reason, keeping only top-N per bucket.
+    // We collect per-bucket counts and a small sample sorted later.
+    final bucketFiles = <String, List<PreviewFileEntry>>{};
+    final bucketCounts = <String, int>{};
+
+    for (final f in files) {
+      if (f.isDir) continue;
+
+      final isIncluded = includedPaths.contains(f.path);
+      switch (filter) {
+        case PreviewFilter.included:
+          if (!isIncluded) continue;
+        case PreviewFilter.excluded:
+          if (isIncluded) continue;
+        case PreviewFilter.all:
+          break;
+      }
+
+      final reason = fileReasons[f.path] ?? 'Included';
+      bucketCounts[reason] = (bucketCounts[reason] ?? 0) + 1;
+
+      final list = bucketFiles.putIfAbsent(reason, () => []);
+      // Keep a generous sample for sorting later; cap to avoid OOM.
+      if (list.length < maxFiles) {
+        list.add(f);
+      } else {
+        // Check if this file should replace the worst in the sample.
+        _maybeInsert(list, f);
+      }
+    }
+
+    if (bucketCounts.isEmpty) return const [];
+
+    // Sort groups: "Included" first, then alphabetical.
+    final sortedReasons = bucketCounts.keys.toList()
+      ..sort((a, b) {
+        if (a == 'Included') return -1;
+        if (b == 'Included') return 1;
+        return a.compareTo(b);
+      });
+
+    // Sort the small sample within each bucket.
+    for (final list in bucketFiles.values) {
+      _sortFiles(list);
+    }
+
+    // Build flat item list capped at maxFiles total.
+    final items = <_ListItem>[];
+    var totalFiles = 0;
+
+    for (final reason in sortedReasons) {
+      final groupFiles = bucketFiles[reason]!;
+      final groupTotal = bucketCounts[reason]!;
+      final isIncluded = reason == 'Included';
+      final remaining = maxFiles - totalFiles;
+      if (remaining <= 0) break;
+
+      final cappedFiles =
+          groupFiles.length > remaining ? groupFiles.sublist(0, remaining) : groupFiles;
+
+      items.add(_ListItem.header(
+        reason: reason,
+        count: groupTotal,
+        isIncluded: isIncluded,
+      ));
+      for (final file in cappedFiles) {
+        items.add(_ListItem.file(file: file, isIncluded: isIncluded));
+      }
+      if (cappedFiles.length < groupTotal) {
+        items.add(_ListItem.overflow(
+          count: groupTotal - cappedFiles.length,
+        ));
+      }
+      totalFiles += cappedFiles.length;
+    }
+
+    return items;
+  }
+
+  void _sortFiles(List<PreviewFileEntry> list) {
+    switch (sortMode) {
+      case FileSortMode.sizeDesc:
+        list.sort((a, b) => b.size.compareTo(a.size));
+      case FileSortMode.sizeAsc:
+        list.sort((a, b) => a.size.compareTo(b.size));
+      case FileSortMode.nameAsc:
+        list.sort((a, b) => a.path.compareTo(b.path));
+      case FileSortMode.nameDesc:
+        list.sort((a, b) => b.path.compareTo(a.path));
+    }
+  }
+
+  /// If the new file ranks higher than the worst file in [sample],
+  /// replace the worst. This keeps the top-N for the chosen sort.
+  void _maybeInsert(List<PreviewFileEntry> sample, PreviewFileEntry f) {
+    // For size-desc (default), keep files with largest sizes.
+    switch (sortMode) {
+      case FileSortMode.sizeDesc:
+        final minIdx = _minIndex(sample, (a, b) => a.size.compareTo(b.size));
+        if (f.size > sample[minIdx].size) sample[minIdx] = f;
+      case FileSortMode.sizeAsc:
+        final maxIdx = _minIndex(sample, (a, b) => b.size.compareTo(a.size));
+        if (f.size < sample[maxIdx].size) sample[maxIdx] = f;
+      case FileSortMode.nameAsc:
+        final maxIdx = _minIndex(sample, (a, b) => b.path.compareTo(a.path));
+        if (f.path.compareTo(sample[maxIdx].path) < 0) sample[maxIdx] = f;
+      case FileSortMode.nameDesc:
+        final minIdx = _minIndex(sample, (a, b) => a.path.compareTo(b.path));
+        if (f.path.compareTo(sample[minIdx].path) > 0) sample[minIdx] = f;
+    }
+  }
+
+  int _minIndex(
+      List<PreviewFileEntry> list, int Function(PreviewFileEntry, PreviewFileEntry) compare) {
+    var idx = 0;
+    for (var i = 1; i < list.length; i++) {
+      if (compare(list[i], list[idx]) < 0) idx = i;
+    }
+    return idx;
   }
 }
 

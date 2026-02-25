@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import '../../models/sync_mode.dart';
 import '../../models/sync_profile.dart';
 import '../../providers/profiles_provider.dart';
 import '../../providers/rclone_provider.dart';
+import '../../services/filter_recommendations.dart';
 import 'advanced_options.dart';
 import 'cloud_folder_browser.dart';
 import 'editor_section.dart';
@@ -227,126 +229,40 @@ class _ProfileEditorScreenState extends ConsumerState<ProfileEditorScreen> {
 
   /// Apply filter rules client-side to determine which files are included.
   ///
-  /// This mirrors the logic in SyncProfile.buildFilterPayload() but runs
-  /// locally against the file list instead of needing a dry-run sync.
-  void _applyFilters() {
+  /// Runs in a background isolate via [compute] to avoid blocking the UI
+  /// when the file list is large (100k+ files).
+  Future<void> _applyFilters() async {
     if (_previewState.allFiles.isEmpty) return;
 
     setState(() {
       _previewState = _previewState.copyWith(isLoadingPreview: true);
     });
 
-    final included = <String>{};
-    final reasons = <String, String>{};
+    final msg = _FilterMessage(
+      files: _previewState.allFiles,
+      useIncludeMode: _useIncludeMode,
+      includeTypes: _includeTypes,
+      excludeTypes: _excludeTypes,
+      excludeGitDirs: _excludeGitDirs,
+      customExcludes: _customExcludes,
+    );
 
-    for (final file in _previewState.allFiles) {
-      if (file.isDir) continue;
+    final result = await compute(_runFiltersInIsolate, msg);
 
-      final path = file.path;
-      final ext = _extensionOf(path);
-
-      // Check include/exclude type filters.
-      if (_useIncludeMode && _includeTypes.isNotEmpty) {
-        if (!_includeTypes.contains(ext)) {
-          reasons[path] = ext.isEmpty
-              ? 'Excluded: no file extension (include mode)'
-              : 'Excluded: .$ext not in included types';
-          continue;
-        }
-      }
-      if (!_useIncludeMode && _excludeTypes.isNotEmpty) {
-        if (_excludeTypes.contains(ext)) {
-          reasons[path] = 'Excluded: .$ext in excluded types';
-          continue;
-        }
-      }
-
-      // Check .git exclusion.
-      if (_excludeGitDirs && _matchesGitDir(path)) {
-        reasons[path] = 'Excluded: .git directory';
-        continue;
-      }
-
-      // Check custom excludes.
-      final matchedPattern = _findMatchingCustomExclude(path);
-      if (matchedPattern != null) {
-        reasons[path] = 'Excluded: pattern "$matchedPattern"';
-        continue;
-      }
-
-      included.add(path);
-      reasons[path] = 'Included';
-    }
-
+    if (!mounted) return;
     setState(() {
       _previewState = _previewState.copyWith(
-        includedPaths: included,
+        includedPaths: result.includedPaths,
         isLoadingPreview: false,
-        fileReasons: reasons,
+        fileReasons: result.fileReasons,
+        stats: result.stats,
       );
     });
   }
 
-  /// Extract file extension without dot, lowercased.
-  String _extensionOf(String path) {
-    final lastDot = path.lastIndexOf('.');
-    if (lastDot < 0 || lastDot == path.length - 1) return '';
-    return path.substring(lastDot + 1).toLowerCase();
-  }
-
-  /// Check if a path is under a .git directory.
-  bool _matchesGitDir(String path) {
-    return path == '.git' ||
-        path.startsWith('.git/') ||
-        path.contains('/.git/') ||
-        path.contains('/.git');
-  }
-
-  /// Returns the first matching custom exclude pattern, or null if none match.
-  String? _findMatchingCustomExclude(String path) {
-    for (final pattern in _customExcludes) {
-      if (pattern.isEmpty) continue;
-      final trimmed = pattern.trim();
-      if (trimmed.contains('*')) {
-        final regex = _globToRegex(trimmed);
-        if (regex.hasMatch(path)) return trimmed;
-      } else {
-        if (path.contains(trimmed)) return trimmed;
-      }
-    }
-    return null;
-  }
-
-  /// Convert a simple glob pattern to a regex.
-  RegExp _globToRegex(String glob) {
-    final buffer = StringBuffer('^');
-    for (var i = 0; i < glob.length; i++) {
-      final c = glob[i];
-      if (c == '*') {
-        if (i + 1 < glob.length && glob[i + 1] == '*') {
-          buffer.write('.*');
-          i++; // skip next *
-          if (i + 1 < glob.length && glob[i + 1] == '/') {
-            i++; // skip /
-          }
-        } else {
-          buffer.write('[^/]*');
-        }
-      } else if (c == '?') {
-        buffer.write('[^/]');
-      } else if (RegExp(r'[.+^${}()|[\]\\]').hasMatch(c)) {
-        buffer.write('\\$c');
-      } else {
-        buffer.write(c);
-      }
-    }
-    buffer.write(r'$');
-    return RegExp(buffer.toString());
-  }
-
   void _debouncedPreview() {
     _previewDebounce?.cancel();
-    _previewDebounce = Timer(const Duration(seconds: 1), () {
+    _previewDebounce = Timer(const Duration(milliseconds: 300), () {
       _applyFilters();
     });
   }
@@ -977,4 +893,193 @@ class _SectionHeader extends StatelessWidget {
           ),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Background isolate filter computation
+// ---------------------------------------------------------------------------
+
+/// Serialisable message sent to the filter isolate.
+class _FilterMessage {
+  final List<PreviewFileEntry> files;
+  final bool useIncludeMode;
+  final List<String> includeTypes;
+  final List<String> excludeTypes;
+  final bool excludeGitDirs;
+  final List<String> customExcludes;
+
+  const _FilterMessage({
+    required this.files,
+    required this.useIncludeMode,
+    required this.includeTypes,
+    required this.excludeTypes,
+    required this.excludeGitDirs,
+    required this.customExcludes,
+  });
+}
+
+/// Result returned from the filter isolate.
+class _FilterResult {
+  final Set<String> includedPaths;
+  final Map<String, String> fileReasons;
+  final PreviewStats stats;
+
+  const _FilterResult({
+    required this.includedPaths,
+    required this.fileReasons,
+    required this.stats,
+  });
+}
+
+/// Top-level function that runs in a background isolate.
+///
+/// Applies all filter rules AND computes summary stats in a single pass,
+/// avoiding multiple O(n) iterations on the main thread.
+_FilterResult _runFiltersInIsolate(_FilterMessage msg) {
+  final included = <String>{};
+  final reasons = <String, String>{};
+
+  // Pre-compile glob patterns once (not per-file).
+  final compiledExcludes = <(String, RegExp?)>[];
+  for (final pattern in msg.customExcludes) {
+    if (pattern.isEmpty) continue;
+    final trimmed = pattern.trim();
+    if (trimmed.contains('*')) {
+      compiledExcludes.add((trimmed, _globToRegex(trimmed)));
+    } else {
+      compiledExcludes.add((trimmed, null));
+    }
+  }
+
+  final includeSet = msg.includeTypes.toSet();
+  final excludeSet = msg.excludeTypes.toSet();
+
+  // Stats accumulators.
+  int includedCount = 0, excludedCount = 0;
+  int includedSize = 0, excludedSize = 0;
+  final extCounts = <String, int>{};
+  final extSizes = <String, int>{};
+
+  for (final file in msg.files) {
+    if (file.isDir) continue;
+
+    final path = file.path;
+
+    // Compute extension stats (always, regardless of filtering).
+    final lastDot = path.lastIndexOf('.');
+    final ext = (lastDot >= 0 && lastDot < path.length - 1)
+        ? path.substring(lastDot + 1).toLowerCase()
+        : '';
+    if (ext.isNotEmpty) {
+      extCounts[ext] = (extCounts[ext] ?? 0) + 1;
+      extSizes[ext] = (extSizes[ext] ?? 0) + file.size;
+    }
+
+    // Check include/exclude type filters.
+    if (msg.useIncludeMode && includeSet.isNotEmpty) {
+      if (!includeSet.contains(ext)) {
+        reasons[path] = ext.isEmpty
+            ? 'Excluded: no file extension (include mode)'
+            : 'Excluded: .$ext not in included types';
+        excludedCount++;
+        excludedSize += file.size;
+        continue;
+      }
+    }
+    if (!msg.useIncludeMode && excludeSet.isNotEmpty) {
+      if (excludeSet.contains(ext)) {
+        reasons[path] = 'Excluded: .$ext in excluded types';
+        excludedCount++;
+        excludedSize += file.size;
+        continue;
+      }
+    }
+
+    // Check .git exclusion.
+    if (msg.excludeGitDirs && _matchesGitDir(path)) {
+      reasons[path] = 'Excluded: .git directory';
+      excludedCount++;
+      excludedSize += file.size;
+      continue;
+    }
+
+    // Check custom excludes.
+    final matchedPattern = _findMatchingCustomExclude(path, compiledExcludes);
+    if (matchedPattern != null) {
+      reasons[path] = 'Excluded: pattern "$matchedPattern"';
+      excludedCount++;
+      excludedSize += file.size;
+      continue;
+    }
+
+    included.add(path);
+    reasons[path] = 'Included';
+    includedCount++;
+    includedSize += file.size;
+  }
+
+  // Detect recommendation patterns in the same isolate pass.
+  final fileTuples = msg.files
+      .map((f) => (path: f.path, name: f.name, isDir: f.isDir))
+      .toList();
+  final matchedPatternIds = FilterRecommendationService.detectPatterns(fileTuples);
+
+  return _FilterResult(
+    includedPaths: included,
+    fileReasons: reasons,
+    stats: PreviewStats(
+      includedCount: includedCount,
+      excludedCount: excludedCount,
+      includedSize: includedSize,
+      excludedSize: excludedSize,
+      extCounts: extCounts,
+      extSizes: extSizes,
+      matchedRecPatternIds: matchedPatternIds,
+    ),
+  );
+}
+
+bool _matchesGitDir(String path) {
+  return path == '.git' ||
+      path.startsWith('.git/') ||
+      path.contains('/.git/') ||
+      path.contains('/.git');
+}
+
+String? _findMatchingCustomExclude(
+    String path, List<(String, RegExp?)> compiledExcludes) {
+  for (final (pattern, regex) in compiledExcludes) {
+    if (regex != null) {
+      if (regex.hasMatch(path)) return pattern;
+    } else {
+      if (path.contains(pattern)) return pattern;
+    }
+  }
+  return null;
+}
+
+RegExp _globToRegex(String glob) {
+  final buffer = StringBuffer('^');
+  for (var i = 0; i < glob.length; i++) {
+    final c = glob[i];
+    if (c == '*') {
+      if (i + 1 < glob.length && glob[i + 1] == '*') {
+        buffer.write('.*');
+        i++; // skip next *
+        if (i + 1 < glob.length && glob[i + 1] == '/') {
+          i++; // skip /
+        }
+      } else {
+        buffer.write('[^/]*');
+      }
+    } else if (c == '?') {
+      buffer.write('[^/]');
+    } else if (RegExp(r'[.+^${}()|[\]\\]').hasMatch(c)) {
+      buffer.write('\\$c');
+    } else {
+      buffer.write(c);
+    }
+  }
+  buffer.write(r'$');
+  return RegExp(buffer.toString());
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/filter_recommendations.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/skeleton_loader.dart';
 import 'file_tree_view.dart';
@@ -202,26 +203,36 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
                 ),
               ),
               const Spacer(),
-              if (ps.isLoadingPreview)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                IconButton(
-                  icon: const Icon(Icons.refresh, size: 18),
-                  onPressed: widget.onRefresh,
-                  tooltip: 'Refresh preview',
-                  visualDensity: VisualDensity.compact,
-                ),
+              SizedBox(
+                width: 32,
+                height: 32,
+                child: ps.isLoadingPreview
+                    ? const Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.refresh, size: 18),
+                        onPressed: widget.onRefresh,
+                        tooltip: 'Refresh preview',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                      ),
+              ),
             ],
           ),
         ),
 
-        // Smart recommendations
+        // Smart recommendations (animated to avoid jarring height changes)
         if (ps.allFiles.isNotEmpty)
-          _buildRecommendations(theme, colorScheme),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            alignment: Alignment.topCenter,
+            child: _buildRecommendations(theme, colorScheme),
+          ),
 
         // Filter tabs + sort
         Padding(
@@ -309,92 +320,42 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
   // ---------------------------------------------------------------------------
 
   Widget _buildRecommendations(ThemeData theme, ColorScheme colorScheme) {
-    final files = widget.state.allFiles;
-    final recommendations = <_Recommendation>[];
-
-    final hasGitFiles = files.any((f) =>
-        f.path == '.git' ||
-        f.path.startsWith('.git/') ||
-        f.path.contains('/.git/') ||
-        f.path.contains('/.git'));
-    if (hasGitFiles && !widget.excludeGitDirs) {
-      recommendations.add(_Recommendation(
-        icon: Icons.source,
-        label: 'Exclude .git',
-        description: '.git folders detected',
-        onApply: () => widget.onExcludeGitDirsChanged(true),
-      ));
+    // Use pre-computed pattern IDs from the background isolate (O(17) check).
+    final matchedIds = widget.state.stats.matchedRecPatternIds;
+    if (matchedIds.isEmpty && widget.customExcludes.isEmpty) {
+      return const SizedBox.shrink();
     }
 
-    final hasGitignore =
-        files.any((f) => f.name == '.gitignore' || f.path.endsWith('.gitignore'));
-    if (hasGitignore && !widget.respectGitignore) {
-      recommendations.add(_Recommendation(
-        icon: Icons.description,
-        label: 'Use .gitignore',
-        description: '.gitignore found',
-        onApply: () => widget.onRespectGitignoreChanged(true),
-      ));
+    final recommendations = matchedIds.isNotEmpty
+        ? FilterRecommendationService.generateFromDetected(
+            matchedPatternIds: matchedIds,
+            customExcludes: widget.customExcludes,
+            excludeGitDirs: widget.excludeGitDirs,
+            respectGitignore: widget.respectGitignore,
+          )
+        : <FilterRecommendation>[];
+
+    // Build list of applied excludes that can be reverted.
+    final appliedChips = <Widget>[];
+    if (widget.customExcludes.isNotEmpty) {
+      for (final pattern in widget.customExcludes) {
+        appliedChips.add(Chip(
+          avatar: const Icon(Icons.check_circle, size: 14,
+              color: Color(0xFF4CAF50)),
+          label: Text(pattern, style: theme.textTheme.labelSmall),
+          onDeleted: () => _removeCustomExclude(pattern),
+          deleteIcon: const Icon(Icons.close, size: 14),
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          backgroundColor: const Color(0xFF4CAF50).withValues(alpha: 0.1),
+        ));
+      }
     }
 
-    final hasNodeModules = files.any((f) =>
-        f.path.contains('node_modules/') || f.path == 'node_modules');
-    if (hasNodeModules &&
-        !widget.customExcludes.any((p) => p.contains('node_modules'))) {
-      recommendations.add(_Recommendation(
-        icon: Icons.folder_delete,
-        label: 'Exclude node_modules',
-        description: 'node_modules detected',
-        onApply: () => widget
-            .onCustomExcludesChanged([...widget.customExcludes, 'node_modules/']),
-      ));
+    if (recommendations.isEmpty && appliedChips.isEmpty) {
+      return const SizedBox.shrink();
     }
-
-    final hasBuildDir = files.any((f) =>
-        f.path.startsWith('build/') ||
-        f.path.contains('/build/') ||
-        f.path == 'build');
-    if (hasBuildDir &&
-        !widget.customExcludes.any((p) => p.contains('build'))) {
-      recommendations.add(_Recommendation(
-        icon: Icons.construction,
-        label: 'Exclude build/',
-        description: 'build/ detected',
-        onApply: () =>
-            widget.onCustomExcludesChanged([...widget.customExcludes, 'build/']),
-      ));
-    }
-
-    final hasDsStore = files.any((f) => f.name == '.DS_Store');
-    if (hasDsStore &&
-        !widget.customExcludes.any((p) => p.contains('.DS_Store'))) {
-      recommendations.add(_Recommendation(
-        icon: Icons.hide_source,
-        label: 'Exclude .DS_Store',
-        description: 'macOS metadata detected',
-        onApply: () => widget
-            .onCustomExcludesChanged([...widget.customExcludes, '.DS_Store']),
-      ));
-    }
-
-    final hasCacheDir = files.any((f) =>
-        f.path.startsWith('.cache/') ||
-        f.path.contains('/.cache/') ||
-        f.path.startsWith('__pycache__/') ||
-        f.path.contains('/__pycache__/'));
-    if (hasCacheDir &&
-        !widget.customExcludes.any(
-            (p) => p.contains('.cache') || p.contains('__pycache__'))) {
-      recommendations.add(_Recommendation(
-        icon: Icons.cached,
-        label: 'Exclude caches',
-        description: 'Cache folders detected',
-        onApply: () => widget.onCustomExcludesChanged(
-            [...widget.customExcludes, '.cache/', '__pycache__/']),
-      ));
-    }
-
-    if (recommendations.isEmpty) return const SizedBox.shrink();
 
     return Container(
       width: double.infinity,
@@ -410,38 +371,85 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.lightbulb_outline, size: 14,
-                  color: colorScheme.tertiary),
-              const SizedBox(width: 4),
-              Text(
-                'Suggestions',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: colorScheme.tertiary,
-                  fontWeight: FontWeight.w600,
+          // Applied excludes (with revert)
+          if (appliedChips.isNotEmpty) ...[
+            Row(
+              children: [
+                Icon(Icons.filter_alt, size: 14,
+                    color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: 4),
+                Text(
+                  'Active excludes',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: recommendations.map((rec) {
-              return ActionChip(
-                avatar: Icon(rec.icon, size: 14),
-                label: Text(rec.label, style: theme.textTheme.labelSmall),
-                tooltip: rec.description,
-                onPressed: rec.onApply,
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-              );
-            }).toList(),
-          ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: appliedChips,
+            ),
+            if (recommendations.isNotEmpty)
+              const SizedBox(height: 6),
+          ],
+          // Unapplied suggestions
+          if (recommendations.isNotEmpty) ...[
+            Row(
+              children: [
+                Icon(Icons.lightbulb_outline, size: 14,
+                    color: colorScheme.tertiary),
+                const SizedBox(width: 4),
+                Text(
+                  'Suggestions',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.tertiary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: recommendations.map((rec) {
+                return ActionChip(
+                  avatar: Icon(rec.icon, size: 14),
+                  label: Text(rec.label, style: theme.textTheme.labelSmall),
+                  tooltip: rec.description,
+                  onPressed: () => _applyRecommendation(rec),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                );
+              }).toList(),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  void _applyRecommendation(FilterRecommendation rec) {
+    if (rec.setsExcludeGitDirs) {
+      widget.onExcludeGitDirsChanged(true);
+    } else if (rec.setsRespectGitignore) {
+      widget.onRespectGitignoreChanged(true);
+    } else if (rec.excludePatterns.isNotEmpty) {
+      widget.onCustomExcludesChanged([
+        ...widget.customExcludes,
+        ...rec.excludePatterns,
+      ]);
+    }
+  }
+
+  void _removeCustomExclude(String pattern) {
+    widget.onCustomExcludesChanged(
+      widget.customExcludes.where((p) => p != pattern).toList(),
     );
   }
 
@@ -449,23 +457,9 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
   // Quick filter bar - compact category chips + manage button
   // ---------------------------------------------------------------------------
 
-  /// Collects extension counts and total sizes from files.
-  ({Map<String, int> counts, Map<String, int> sizes}) _collectExtStats() {
-    final counts = <String, int>{};
-    final sizes = <String, int>{};
-    for (final f in widget.state.allFiles) {
-      if (f.isDir) continue;
-      final lastDot = f.path.lastIndexOf('.');
-      if (lastDot < 0 || lastDot == f.path.length - 1) continue;
-      final ext = f.path.substring(lastDot + 1).toLowerCase();
-      counts[ext] = (counts[ext] ?? 0) + 1;
-      sizes[ext] = (sizes[ext] ?? 0) + f.size;
-    }
-    return (counts: counts, sizes: sizes);
-  }
-
   Widget _buildQuickFilterBar(ThemeData theme, ColorScheme colorScheme) {
-    final (:counts, :sizes) = _collectExtStats();
+    final counts = widget.state.stats.extCounts;
+    final sizes = widget.state.stats.extSizes;
     if (counts.isEmpty) return const SizedBox.shrink();
 
     final activeTypes = widget.useIncludeMode
@@ -958,20 +952,6 @@ class _FilePreviewPanelState extends State<FilePreviewPanel> {
       },
     );
   }
-}
-
-class _Recommendation {
-  final IconData icon;
-  final String label;
-  final String description;
-  final VoidCallback onApply;
-
-  const _Recommendation({
-    required this.icon,
-    required this.label,
-    required this.description,
-    required this.onApply,
-  });
 }
 
 class _CategoryInfo {
