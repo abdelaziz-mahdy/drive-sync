@@ -975,24 +975,21 @@ _FilterResult _runFiltersInIsolate(_FilterMessage msg) {
       extSizes[ext] = (extSizes[ext] ?? 0) + file.size;
     }
 
-    // Check include/exclude type filters.
-    if (msg.useIncludeMode && includeSet.isNotEmpty) {
-      if (!includeSet.contains(ext)) {
-        reasons[path] = ext.isEmpty
-            ? 'Excluded: no file extension (include mode)'
-            : 'Excluded: .$ext not in included types';
-        excludedCount++;
-        excludedSize += file.size;
-        continue;
-      }
+    // Check include type whitelist (if set, only these types pass).
+    if (includeSet.isNotEmpty && !includeSet.contains(ext)) {
+      reasons[path] = ext.isEmpty
+          ? 'Excluded: no file extension (include mode)'
+          : 'Excluded: .$ext not in included types';
+      excludedCount++;
+      excludedSize += file.size;
+      continue;
     }
-    if (!msg.useIncludeMode && excludeSet.isNotEmpty) {
-      if (excludeSet.contains(ext)) {
-        reasons[path] = 'Excluded: .$ext in excluded types';
-        excludedCount++;
-        excludedSize += file.size;
-        continue;
-      }
+    // Check exclude type blacklist (these types are always blocked).
+    if (excludeSet.isNotEmpty && excludeSet.contains(ext)) {
+      reasons[path] = 'Excluded: .$ext in excluded types';
+      excludedCount++;
+      excludedSize += file.size;
+      continue;
     }
 
     // Check .git exclusion.
